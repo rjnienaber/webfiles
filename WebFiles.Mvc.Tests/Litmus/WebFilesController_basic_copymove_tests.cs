@@ -13,10 +13,10 @@ using WebFiles.Mvc.ActionResults;
 using System.Collections.Specialized;
 using System.Web.Routing;
 
-namespace WebFiles.Mvc.Tests
+namespace WebFiles.Mvc.Tests.Litmus
 {
     [TestFixture]
-    public class WebFilesControllerTests
+    public class WebFilesController_basic_copymove_tests
     {
         Configuration config = null;
         Mock<IStorageProvider> provider = null;
@@ -157,7 +157,7 @@ namespace WebFiles.Mvc.Tests
             Assert.That(result.ContentType, Is.EqualTo("text/html"));
             Assert.That(result.Content, Is.EqualTo(""));
             Assert.That(result.HttpStatusCode, Is.EqualTo(200));
-            Assert.That(result.Headers["Allow"], Is.EqualTo("OPTIONS, DELETE, MKCOL, PUT"));
+            Assert.That(result.Headers["Allow"], Is.EqualTo("OPTIONS, DELETE, MKCOL, PUT, GET, PROPFIND, PROPPATCH, COPY, MOVE"));
             Assert.That(result.Headers["Dav"], Is.EqualTo("1, 2"));
         }
 

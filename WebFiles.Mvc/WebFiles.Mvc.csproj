@@ -43,12 +43,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ActionResults\MultiStatusResult\MultiStatusResult.cs" />
+    <Compile Include="ActionResults\MultiStatusResult\PropertyStatus.cs" />
+    <Compile Include="ActionResults\MultiStatusResult\Response.cs" />
     <Compile Include="Configuration.cs" />
-    <Compile Include="Providers\FileSystemProvider.cs" />
+    <Compile Include="Requests\PropfindRequest.cs" />
+    <Compile Include="StorageProviders\FileSystemProvider.cs" />
     <Compile Include="MakeCollectionException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ActionResults\NoContentResult.cs" />
-    <Compile Include="Providers\IStorageProvider.cs" />
+    <Compile Include="StorageProviders\IStorageProvider.cs" />
+    <Compile Include="Util.cs" />
     <Compile Include="WebFilesController.cs" />
     <Compile Include="ActionResults\XmlResult.cs" />
   </ItemGroup>

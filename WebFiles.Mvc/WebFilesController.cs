@@ -8,6 +8,11 @@ using System.IO;
 using WebFiles.Mvc.Providers;
 using WebFiles.Mvc.ActionResults;
 using System.Collections.Specialized;
+using System.Text;
+using System.Xml;
+using System.Diagnostics;
+using System.Xml.Linq;
+using WebFiles.Mvc.Requests;
 
 namespace WebFiles.Mvc
 {
@@ -22,6 +27,30 @@ namespace WebFiles.Mvc
         {
             this.storageProvider = storageProvider;
             this.config = config;
+        }
+
+        [AcceptVerbs("PROPFIND")]
+        [ActionName(ActionName)]
+        public ActionResult Propfind(string pathInfo)
+        {
+            try
+            {
+                using (var streamReader = new StreamReader(Request.InputStream, config.RequestEncoding))
+                    return Propfind(pathInfo, new PropfindRequest(XDocument.Load(streamReader)));
+            }
+            catch (XmlException e)
+            {
+                throw new HttpException(400, "malformed xml request body", e);
+            }
+        }
+
+        public virtual ActionResult Propfind(string pathInfo, PropfindRequest request)
+        {
+            var fullPath = storageProvider.JoinPath(config.RootPath, pathInfo);
+            if (!storageProvider.CheckExists(fullPath))
+                throw new HttpException(404, "path doesn't exist");
+
+            throw new NotImplementedException();
         }
 
         [AcceptVerbs("COPY")]
@@ -44,6 +73,29 @@ namespace WebFiles.Mvc
             var source = storageProvider.JoinPath(config.RootPath, pathInfo);
 
             storageProvider.Copy(source, destination);
+            return new NoContentResult(destinationExists ? 204 : 201);
+        }
+
+        [AcceptVerbs("MOVE")]
+        [ActionName(ActionName)]
+        public virtual NoContentResult Move(string pathInfo)
+        {
+            var relativeDestinationUrl = Request.Headers["Destination"].Replace(Request.Url.AbsoluteUri.Replace(pathInfo, ""), "");
+            var destination = CheckAncestorPaths(relativeDestinationUrl);
+
+            var destinationExists = storageProvider.CheckExists(destination);
+
+            if (Request.Headers.AllKeys.Contains("Overwrite") &&
+                Request.Headers["Overwrite"] == "F" &&
+                destinationExists)
+                throw new HttpException(412, "path already exists");
+
+            if (destinationExists)
+                storageProvider.Delete(destination);
+
+            var source = storageProvider.JoinPath(config.RootPath, pathInfo);
+
+            storageProvider.Move(source, destination);
             return new NoContentResult(destinationExists ? 204 : 201);
         }
 
@@ -123,32 +175,9 @@ namespace WebFiles.Mvc
         public virtual NoContentResult Options(string pathInfo)
         {
             var result = new NoContentResult(200);
-            result.Headers.Add("Allow", "OPTIONS, DELETE, MKCOL, PUT");
+            result.Headers.Add("Allow", "OPTIONS, DELETE, MKCOL, PUT, GET, PROPFIND, PROPPATCH, COPY, MOVE");
             result.Headers.Add("DAV", "1, 2");
             return result;
-        }
-
-        [AcceptVerbs("MOVE")]
-        [ActionName(ActionName)]
-        public virtual NoContentResult Move(string pathInfo)
-        {
-            var relativeDestinationUrl = Request.Headers["Destination"].Replace(Request.Url.AbsoluteUri.Replace(pathInfo, ""), "");
-            var destination = CheckAncestorPaths(relativeDestinationUrl);
-
-            var destinationExists = storageProvider.CheckExists(destination);
-
-            if (Request.Headers.AllKeys.Contains("Overwrite") &&
-                Request.Headers["Overwrite"] == "F" &&
-                destinationExists)
-                throw new HttpException(412, "path already exists");
-
-            if (destinationExists)
-                storageProvider.Delete(destination);
-
-            var source = storageProvider.JoinPath(config.RootPath, pathInfo);
-
-            storageProvider.Move(source, destination);
-            return new NoContentResult(destinationExists ? 204 : 201);
         }
     }
 }

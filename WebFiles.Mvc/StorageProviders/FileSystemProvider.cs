@@ -87,5 +87,11 @@ namespace WebFiles.Mvc.Providers
 
             Directory.Move(source, destination);
         }
+
+
+        public ActionResults.MultiStatusResult Process(Requests.PropfindRequest request)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

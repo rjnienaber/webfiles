@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using WebFiles.Mvc.Requests;
+using WebFiles.Mvc.ActionResults;
 namespace WebFiles.Mvc.Providers
 {
     public interface IStorageProvider
@@ -13,5 +15,7 @@ namespace WebFiles.Mvc.Providers
         void Save(string fullPath, Stream input);
         void Copy(string source, string destination);
         void Move(string source, string destination);
+
+        MultiStatusResult Process(PropfindRequest request);
     }
 }
