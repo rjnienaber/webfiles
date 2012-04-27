@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using WebFiles.Mvc.Requests;
+using WebFiles.Mvc.ActionResults;
 
 namespace WebFiles.Mvc.Providers
 {
@@ -89,9 +91,20 @@ namespace WebFiles.Mvc.Providers
         }
 
 
-        public ActionResults.MultiStatusResult Process(Requests.PropfindRequest request)
+        public MultiStatusResult Process(string rootPath, string pathInfo, PropfindRequest request)
         {
-            throw new NotImplementedException();
+            var fullPath = JoinPath(rootPath, pathInfo);
+            var multiStatus = new MultiStatusResult();
+            if (request.HasResourceTypeProperty)
+            {
+                var response = new Response { Href = pathInfo };
+                response.Found.Status = "HTTP/1.1 200 Found";
+                if (IsACollection(fullPath))
+                    response.Found.AddCollectionProperty();
+                multiStatus.Responses.Add(response);
+            }
+
+            return multiStatus;
         }
     }
 }

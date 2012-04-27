@@ -5,6 +5,7 @@ using System.Text;
 using NUnit.Framework;
 using System.IO;
 using WebFiles.Mvc.Providers;
+using WebFiles.Mvc.Requests;
 
 namespace WebFiles.Mvc.Tests
 {
@@ -254,20 +255,17 @@ namespace WebFiles.Mvc.Tests
         public void Move_should_move_a_directory_to_a_new_location()
         {
             string startDir = null;
-            string startDirTempFile = null;
-            string subDir = null;
-            string subDirTempFile = null;
             string newDir = null;
             try
             {
                 startDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
                 Directory.CreateDirectory(startDir);
-                startDirTempFile = Path.Combine(startDir, Path.GetRandomFileName());
+                var startDirTempFile = Path.Combine(startDir, Path.GetRandomFileName());
                 File.WriteAllText(startDirTempFile, "start dir temp file");
 
-                subDir = Path.Combine(startDir, Path.GetRandomFileName());
+                var subDir = Path.Combine(startDir, Path.GetRandomFileName());
                 Directory.CreateDirectory(subDir);
-                subDirTempFile = Path.Combine(subDir, Path.GetRandomFileName());
+                var subDirTempFile = Path.Combine(subDir, Path.GetRandomFileName());
                 File.WriteAllText(subDirTempFile, "sub dir temp file");
 
                 newDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
@@ -287,6 +285,33 @@ namespace WebFiles.Mvc.Tests
             {
                 EnsureDirectoryRemoved(startDir);
                 EnsureDirectoryRemoved(newDir);
+            }
+        }
+
+
+        [Test]
+        public void should_return_is_collection_property()
+        {
+            string tempDir = null;
+            try
+            {
+                var tempPath = Path.GetTempPath();
+                var newDir = Path.GetRandomFileName();
+                tempDir = Path.Combine(tempPath, newDir);
+                Directory.CreateDirectory(tempDir);
+
+                var request = new PropfindRequest { HasResourceTypeProperty = true };
+                var result = fileSystem.Process(tempPath, newDir, request);
+
+                Assert.That(result.Responses.Count, Is.EqualTo(1));
+                var response = result.Responses[0];
+                Assert.That(response.Href, Is.EqualTo(newDir));
+                Assert.That(response.Found.IsCollection, Is.True);
+                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            }
+            finally
+            {
+                EnsureDirectoryRemoved(tempDir);
             }
         }
 

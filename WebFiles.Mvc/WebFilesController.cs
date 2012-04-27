@@ -50,7 +50,7 @@ namespace WebFiles.Mvc
             if (!storageProvider.CheckExists(fullPath))
                 throw new HttpException(404, "path doesn't exist");
 
-            throw new NotImplementedException();
+            return storageProvider.Process(config.RootPath, pathInfo, request);
         }
 
         [AcceptVerbs("COPY")]

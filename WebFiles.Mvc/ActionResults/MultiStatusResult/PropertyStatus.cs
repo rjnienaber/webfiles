@@ -11,6 +11,7 @@ namespace WebFiles.Mvc.ActionResults
         public string Status { get; set; }
         public List<XElement> Properties { get; private set; }
         public XNamespace Dav = MultiStatusResult.Dav;
+        public bool IsCollection { get; set; }
 
         public PropertyStatus()
         {
@@ -31,6 +32,7 @@ namespace WebFiles.Mvc.ActionResults
 
         public XElement AddCollectionProperty()
         {
+            IsCollection = true;
             var property = new XElement(Dav + "resourcetype",
                                new XElement(Dav + "collection"));
             Properties.Add(property);

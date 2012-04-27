@@ -9,7 +9,6 @@ namespace WebFiles.Mvc.ActionResults
     public class Response
     {
         public string Href { get; set; }
-        public bool IsCollection { get; set; }
 
         public PropertyStatus Found { get; set; }
         public PropertyStatus NotFound { get; set; }

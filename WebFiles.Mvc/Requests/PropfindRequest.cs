@@ -8,8 +8,8 @@ namespace WebFiles.Mvc.Requests
 {
     public class PropfindRequest
     {
-        public List<string> DavProperties { get; private set; }
-        public List<XElement> NonDavProperties { get; private set; }
+        public List<string> DavProperties { get; set; }
+        public List<XElement> NonDavProperties { get; set; }
 
         public PropfindRequest()
         {

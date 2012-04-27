@@ -16,6 +16,6 @@ namespace WebFiles.Mvc.Providers
         void Copy(string source, string destination);
         void Move(string source, string destination);
 
-        MultiStatusResult Process(PropfindRequest request);
+        MultiStatusResult Process(string rootPath, string pathInfo, PropfindRequest request);
     }
 }

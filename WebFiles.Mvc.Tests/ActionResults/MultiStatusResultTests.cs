@@ -92,6 +92,7 @@ namespace WebFiles.Mvc.Tests.ActionResults
     </propstat>
   </response>
 </multistatus>"));
+            Assert.That(response.Found.IsCollection, Is.True);
         }
 
         [Test]

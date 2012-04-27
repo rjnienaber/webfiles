@@ -74,15 +74,13 @@ namespace WebFiles.Mvc.Tests.Litmus
             provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/")).Returns("D:\\stuff\\litmus");
             provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
             var multiStatusResult = new MultiStatusResult();
-            provider.Setup(p => p.Process(request)).Returns(multiStatusResult);
+            provider.Setup(p => p.Process("D:\\stuff", "litmus/", request)).Returns(multiStatusResult);
 
             var result = controller.Propfind("litmus/", request) as MultiStatusResult;
 
             Assert.That(result, Is.Not.Null);
 
             Assert.That(result, Is.SameAs(multiStatusResult));
-            Assert.That(result.Responses.Count, Is.EqualTo(1));
-            Assert.That(result.Responses[0].Href, Is.EqualTo("litmus/"));
         }
     }
 }
