@@ -14,6 +14,40 @@ namespace WebFiles.Mvc.Tests
     public class FileSystemProviderTests
     {
         FileSystemProvider fileSystem = new FileSystemProvider();
+
+        List<string> paths;
+
+        [SetUp]
+        public void Setup()
+        {
+            paths = new List<string>();
+        }
+
+        [TearDown]
+        public void Teardown()
+        {
+            foreach (var path in paths)
+            {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, true);
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+        }
+
+        string CreateDirectory(string path)
+        {
+            Directory.CreateDirectory(path);
+            return AddPath(path);
+        }
+
+        string AddPath(string path)
+        {
+            paths.Add(path);
+            return path;
+        }
+
+
         [Test]
         public void Normalize_urls()
         {
@@ -24,41 +58,21 @@ namespace WebFiles.Mvc.Tests
         [Test]
         public void Delete_of_a_file_off_disk()
         {
-            var file = Path.GetTempFileName();
-            Assert.That(File.Exists(file), Is.True);
-
-            try
-            {
-                fileSystem.Delete(file);
-                Assert.That(File.Exists(file), Is.False);
-            }
-            finally
-            {
-                EnsureFileRemoved(file);
-            }
+            var file = AddPath(Path.GetTempFileName());
+            fileSystem.Delete(file);
+            Assert.That(File.Exists(file), Is.False);
         }
 
         [Test]
         public void Delete_a_directory_recurisively_off_disk()
         {
-            var newTempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            Directory.CreateDirectory(newTempPath);
-            Assert.That(Directory.Exists(newTempPath), Is.True);
-            try
-            {
-                var newTempPath2 = Path.Combine(newTempPath, Path.GetRandomFileName());
-                Directory.CreateDirectory(newTempPath2);
-                Assert.That(Directory.Exists(newTempPath2), Is.True);
+            var newTempPath = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            var newTempPath2 = CreateDirectory(Path.Combine(newTempPath, Path.GetRandomFileName()));
 
-                fileSystem.Delete(newTempPath);
-                Assert.That(Directory.Exists(newTempPath2), Is.False);
-                Assert.That(Directory.Exists(newTempPath), Is.False);
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(newTempPath);
-            }
-        }
+            fileSystem.Delete(newTempPath);
+            Assert.That(Directory.Exists(newTempPath2), Is.False);
+            Assert.That(Directory.Exists(newTempPath), Is.False);
+       }
 
         [Test]
         public void Delete_a_non_existent_file_should_do_nothing()
@@ -74,449 +88,284 @@ namespace WebFiles.Mvc.Tests
             ms.Write(bytes, 0, bytes.Length);
             ms.Position = 0;
 
-            var fileName = Path.GetTempFileName();
+            var fileName = AddPath(Path.GetTempFileName());
             fileSystem.Save(fileName, ms);
-            try
-            {
-                var text = File.ReadAllText(fileName);
-                Assert.That(text, Is.EqualTo("save this resource"));
-            }
-            finally
-            {
-                EnsureFileRemoved(fileName);
-            }
-        }
+
+            var text = File.ReadAllText(fileName);
+            Assert.That(text, Is.EqualTo("save this resource"));
+       }
 
         [Test]
         public void Copy_resource_to_a_new_destination()
         {
-            string tempFileSource = null;
-            string tempFileDestination = null;
-            try
-            {
-                tempFileSource = Path.GetTempFileName();
-                File.WriteAllText(tempFileSource, "copy resource to new location");
+            var tempFileSource = AddPath(Path.GetTempFileName());
+            File.WriteAllText(tempFileSource, "copy resource to new location");
 
-                tempFileDestination = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                Assert.That(File.Exists(tempFileDestination), Is.False);
-                fileSystem.Copy(tempFileSource, tempFileDestination);
-                Assert.That(File.Exists(tempFileDestination), Is.True);
+            var tempFileDestination = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            Assert.That(File.Exists(tempFileDestination), Is.False);
+            fileSystem.Copy(tempFileSource, tempFileDestination);
+            Assert.That(File.Exists(tempFileDestination), Is.True);
 
-                Assert.That(File.ReadAllText(tempFileDestination), Is.EqualTo("copy resource to new location"));
-            }
-            finally
-            {
-                EnsureFileRemoved(tempFileSource);
-                EnsureFileRemoved(tempFileDestination);
-            }
-        }
+            Assert.That(File.ReadAllText(tempFileDestination), Is.EqualTo("copy resource to new location"));
+       }
 
         [Test]
         public void Copy_resource_to_a_new_destination_should_overwrite_by_default()
         {
-            string tempFileSource = null;
-            string tempFileDestination = null;
-            try
-            {
-                tempFileSource = Path.GetTempFileName();
-                File.WriteAllText(tempFileSource, "copy resource to new location");
+            string tempFileSource = AddPath(Path.GetTempFileName());
+            File.WriteAllText(tempFileSource, "copy resource to new location");
 
-                tempFileDestination = Path.GetTempFileName();
-                Assert.That(File.Exists(tempFileDestination), Is.True);
-                fileSystem.Copy(tempFileSource, tempFileDestination);
-                Assert.That(File.Exists(tempFileDestination), Is.True);
+            var tempFileDestination = AddPath(Path.GetTempFileName());
+            Assert.That(File.Exists(tempFileDestination), Is.True);
 
-                Assert.That(File.ReadAllText(tempFileDestination), Is.EqualTo("copy resource to new location"));
-            }
-            finally
-            {
-                EnsureFileRemoved(tempFileSource);
-                EnsureFileRemoved(tempFileDestination);
-            }
+            fileSystem.Copy(tempFileSource, tempFileDestination);
+            Assert.That(File.Exists(tempFileDestination), Is.True);
+
+            Assert.That(File.ReadAllText(tempFileDestination), Is.EqualTo("copy resource to new location"));
         }
 
         [Test]
         public void Determines_whether_a_path_is_a_directory_or_not()
         {
-            string tempFile = null;
-            var newTempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            var newTempPath = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
             Directory.CreateDirectory(newTempPath);
             Assert.That(Directory.Exists(newTempPath), Is.True);
-            try
-            {
-                Assert.That(fileSystem.IsACollection(newTempPath), Is.True);
+            Assert.That(fileSystem.IsACollection(newTempPath), Is.True);
 
-                tempFile = Path.GetTempFileName();
-                Assert.That(fileSystem.IsACollection(tempFile), Is.False);
-
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(newTempPath);
-                EnsureFileRemoved(tempFile);
-            }
+            var tempFile = AddPath(Path.GetTempFileName());
+            Assert.That(fileSystem.IsACollection(tempFile), Is.False);
         }
 
         [Test]
         public void Copy_should_create_the_directory_its_copying_to()
         {
-            string startDir = null;
-            string startDirTempFile = null;
-            string newDir = null;
-            try
-            {
-                startDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                Directory.CreateDirectory(startDir);
-                startDirTempFile = Path.Combine(startDir, Path.GetRandomFileName());
-                File.WriteAllText(startDirTempFile, "start dir temp file");
+            string startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            Directory.CreateDirectory(startDir);
+            string startDirTempFile = AddPath(Path.Combine(startDir, Path.GetRandomFileName()));
+            File.WriteAllText(startDirTempFile, "start dir temp file");
 
-                newDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                fileSystem.Copy(startDir, newDir);
+            string newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            fileSystem.Copy(startDir, newDir);
 
-                var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
 
-                var newDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(startDirTempFile));
-                Assert.That(File.ReadAllText(newDirTempFile), Is.EqualTo("start dir temp file"));
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(startDir);
-                EnsureDirectoryRemoved(newDir);
-            }
+            var newDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(startDirTempFile));
+            Assert.That(File.ReadAllText(newDirTempFile), Is.EqualTo("start dir temp file"));
         }
 
         [Test]
         public void Copy_recursively_including_directories()
         {
-            string startDir = null;
-            string startDirTempFile = null;
-            string subDir = null;
-            string subDirTempFile = null;
-            string newDir = null;
-            try
-            {
-                startDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                Directory.CreateDirectory(startDir);
-                startDirTempFile = Path.Combine(startDir, Path.GetRandomFileName());
-                File.WriteAllText(startDirTempFile, "start dir temp file");
+            var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            var startDirTempFile = AddPath(Path.Combine(startDir, Path.GetRandomFileName()));
+            File.WriteAllText(startDirTempFile, "start dir temp file");
 
-                subDir = Path.Combine(startDir, Path.GetRandomFileName());
-                Directory.CreateDirectory(subDir);
-                subDirTempFile = Path.Combine(subDir, Path.GetRandomFileName());
-                File.WriteAllText(subDirTempFile, "sub dir temp file");
+            var subDir = CreateDirectory(Path.Combine(startDir, Path.GetRandomFileName()));
+            Directory.CreateDirectory(subDir);
+            var subDirTempFile = AddPath(Path.Combine(subDir, Path.GetRandomFileName()));
+            File.WriteAllText(subDirTempFile, "sub dir temp file");
 
-                newDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                fileSystem.Copy(startDir, newDir);
+            var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            
+            fileSystem.Copy(startDir, newDir);
 
-                var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
 
-                var newDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(startDirTempFile));
-                Assert.That(File.ReadAllText(newDirTempFile), Is.EqualTo("start dir temp file"));
-                var newSubDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(subDirTempFile));
-                Assert.That(File.ReadAllText(newSubDirTempFile), Is.EqualTo("sub dir temp file"));
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(startDir);
-                EnsureDirectoryRemoved(newDir);
-            }
+            var newDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(startDirTempFile));
+            Assert.That(File.ReadAllText(newDirTempFile), Is.EqualTo("start dir temp file"));
+            var newSubDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(subDirTempFile));
+            Assert.That(File.ReadAllText(newSubDirTempFile), Is.EqualTo("sub dir temp file"));
         }
 
         [Test]
         public void Move_should_move_a_file_to_new_location()
         {
-            string startDir = null;
-            string startDirTempFile = null;
-            string newDir = null;
-            try
-            {
-                startDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                Directory.CreateDirectory(startDir);
-                startDirTempFile = Path.Combine(startDir, Path.GetRandomFileName());
-                File.WriteAllText(startDirTempFile, "start dir temp file");
+            var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            var startDirTempFile = AddPath(Path.Combine(startDir, Path.GetRandomFileName()));
+            File.WriteAllText(startDirTempFile, "start dir temp file");
 
-                newDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                Directory.CreateDirectory(newDir);
-                var newDirTempFile = Path.Combine(newDir, Path.GetRandomFileName());
-                fileSystem.Move(startDirTempFile, newDirTempFile); 
+            var newDir = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            var newDirTempFile = Path.Combine(newDir, Path.GetRandomFileName());
+            fileSystem.Move(startDirTempFile, newDirTempFile); 
 
-                var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
 
-                Assert.That(File.Exists(startDirTempFile), Is.False);
-                Assert.That(File.ReadAllText(newDirTempFile), Is.EqualTo("start dir temp file"));
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(startDir);
-                EnsureDirectoryRemoved(newDir);
-            }
+            Assert.That(File.Exists(startDirTempFile), Is.False);
+            Assert.That(File.ReadAllText(newDirTempFile), Is.EqualTo("start dir temp file"));
         }
 
         [Test]
         public void Move_should_move_a_directory_to_a_new_location()
         {
-            string startDir = null;
-            string newDir = null;
-            try
-            {
-                startDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                Directory.CreateDirectory(startDir);
-                var startDirTempFile = Path.Combine(startDir, Path.GetRandomFileName());
-                File.WriteAllText(startDirTempFile, "start dir temp file");
+            var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            var startDirTempFile = Path.Combine(startDir, Path.GetRandomFileName());
+            File.WriteAllText(startDirTempFile, "start dir temp file");
 
-                var subDir = Path.Combine(startDir, Path.GetRandomFileName());
-                Directory.CreateDirectory(subDir);
-                var subDirTempFile = Path.Combine(subDir, Path.GetRandomFileName());
-                File.WriteAllText(subDirTempFile, "sub dir temp file");
+            var subDir = CreateDirectory(Path.Combine(startDir, Path.GetRandomFileName()));
+            var subDirTempFile = Path.Combine(subDir, Path.GetRandomFileName());
+            File.WriteAllText(subDirTempFile, "sub dir temp file");
 
-                newDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                Directory.CreateDirectory(newDir);
-                var newSubDir = Path.Combine(newDir, Path.GetRandomFileName());
+            var newDir = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            var newSubDir = AddPath(Path.Combine(newDir, Path.GetRandomFileName()));
 
-                fileSystem.Move(startDir, newSubDir);
+            fileSystem.Move(startDir, newSubDir);
 
-                var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
 
-                var newDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(startDirTempFile));
-                Assert.That(File.ReadAllText(newDirTempFile), Is.EqualTo("start dir temp file"));
-                var newSubDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(subDirTempFile));
-                Assert.That(File.ReadAllText(newSubDirTempFile), Is.EqualTo("sub dir temp file"));
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(startDir);
-                EnsureDirectoryRemoved(newDir);
-            }
+            var newDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(startDirTempFile));
+            Assert.That(File.ReadAllText(newDirTempFile), Is.EqualTo("start dir temp file"));
+            var newSubDirTempFile = files.First(f => Path.GetFileName(f) == Path.GetFileName(subDirTempFile));
+            Assert.That(File.ReadAllText(newSubDirTempFile), Is.EqualTo("sub dir temp file"));
         }
-
 
         [Test]
         public void should_return_is_collection_property()
         {
-            string tempDir = null;
-            try
-            {
-                var tempPath = Path.GetTempPath();
-                var newDir = Path.GetRandomFileName();
-                tempDir = Path.Combine(tempPath, newDir);
-                Directory.CreateDirectory(tempDir);
+            var tempPath = Path.GetTempPath();
+            var newDir = Path.GetRandomFileName();
+            var tempDir = CreateDirectory(Path.Combine(tempPath, newDir));
 
-                var request = new PropfindRequest { HasResourceType = true, PathInfo = newDir };
-                var result = fileSystem.Process(tempPath, request);
+            var request = new PropfindRequest { HasResourceType = true, PathInfo = newDir };
+            var result = fileSystem.Process(tempPath, request);
 
-                Assert.That(result.Responses.Count, Is.EqualTo(1));
-                var response = result.Responses[0];
-                Assert.That(response.Href, Is.EqualTo(newDir));
-                Assert.That(response.Found.IsCollection, Is.True);
-                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(tempDir);
-            }
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            var response = result.Responses[0];
+            Assert.That(response.Href, Is.EqualTo(newDir));
+            Assert.That(response.Found.IsCollection, Is.True);
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
         }
 
         [Test]
         public void should_return_empty_resourcetype_when_not_dir()
         {
-            string tempPath = null;
-            try
-            {
-                tempPath = Path.GetTempFileName();
-                var fileName = Path.GetFileName(tempPath);
+            var tempPath = AddPath(Path.GetTempFileName());
+            var fileName = Path.GetFileName(tempPath);
 
-                var request = new PropfindRequest { HasResourceType = true, PathInfo = "/" + tempPath};
-                var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { HasResourceType = true, PathInfo = "/" + tempPath};
+            var result = fileSystem.Process(Path.GetTempPath(), request);
 
-                Assert.That(result.Responses.Count, Is.EqualTo(1));
-                var response = result.Responses[0];
-                Assert.That(response.Href, Is.EqualTo("/" + tempPath));
-                Assert.That(response.Found.IsCollection, Is.False);
-                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
-            }
-            finally
-            {
-                EnsureFileRemoved(tempPath);
-            }
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            var response = result.Responses[0];
+            Assert.That(response.Href, Is.EqualTo("/" + tempPath));
+            Assert.That(response.Found.IsCollection, Is.False);
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
         }
 
         [Test]
         public void should_return_content_length_of_file()
         {
-            string tempPath = null;
-            try
-            {
-                tempPath = Path.GetTempFileName();
-                var fileName = Path.GetFileName(tempPath);
-                File.WriteAllBytes(tempPath, new byte[] { 23, 45, 45 });
+            var tempPath = AddPath(Path.GetTempFileName());
+            var fileName = Path.GetFileName(tempPath);
+            File.WriteAllBytes(tempPath, new byte[] { 23, 45, 45 });
 
-                var request = new PropfindRequest { HasGetContentLength = true, PathInfo = "/" + fileName };
-                var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { HasGetContentLength = true, PathInfo = "/" + fileName };
+            var result = fileSystem.Process(Path.GetTempPath(), request);
 
-                Assert.That(result.Responses.Count, Is.EqualTo(1));
-                var response = result.Responses[0];
-                Assert.That(response.Href, Is.EqualTo("/" + fileName));
-                Assert.That(response.Found.ContentLength, Is.EqualTo(3));
-                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
-            }
-            finally
-            {
-                EnsureFileRemoved(tempPath);
-            }
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            var response = result.Responses[0];
+            Assert.That(response.Href, Is.EqualTo("/" + fileName));
+            Assert.That(response.Found.ContentLength, Is.EqualTo(3));
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
         }
 
         [Test]
         public void should_not_return_content_length_of_directory()
         {
-            string tempPath = null;
-            try
-            {
-                var tempDir = Path.GetTempPath();
-                var newDir = Path.GetRandomFileName();
-                tempPath = Path.Combine(tempDir, newDir);
-                Directory.CreateDirectory(tempPath);
+            var tempDir = Path.GetTempPath();
+            var newDir = Path.GetRandomFileName();
+            var tempPath = CreateDirectory(Path.Combine(tempDir, newDir));
 
-                var request = new PropfindRequest { HasGetContentLength = true, PathInfo = "/" + newDir};
-                var result = fileSystem.Process(tempDir, request);
+            var request = new PropfindRequest { HasGetContentLength = true, PathInfo = "/" + newDir};
+            var result = fileSystem.Process(tempDir, request);
 
-                Assert.That(result.Responses.Count, Is.EqualTo(1));
-                var response = result.Responses[0];
-                Assert.That(response.Href, Is.EqualTo("/" + newDir));
-                Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
-                Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            var response = result.Responses[0];
+            Assert.That(response.Href, Is.EqualTo("/" + newDir));
+            Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
+            Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
 
-                var displayNameProperty = response.NotFound.Properties[0];
-                Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("getcontentlength"));
-                Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(Util.DavNamespace));
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(tempPath);
-            }
+            var displayNameProperty = response.NotFound.Properties[0];
+            Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("getcontentlength"));
+            Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(Util.DavNamespace));
         }
 
         [Test]
         public void should_return_last_modified_of_file()
         {
-            string tempPath = null;
-            try
-            {
-                tempPath = Path.GetTempFileName();
-                var fileName = Path.GetFileName(tempPath);
-                var lastModified = File.GetLastWriteTimeUtc(tempPath);
+            var tempPath = AddPath(Path.GetTempFileName());
+            var fileName = Path.GetFileName(tempPath);
+            var lastModified = File.GetLastWriteTimeUtc(tempPath);
 
-                var request = new PropfindRequest { HasGetLastModified = true, PathInfo = "/" + fileName };
-                var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { HasGetLastModified = true, PathInfo = "/" + fileName };
+            var result = fileSystem.Process(Path.GetTempPath(), request);
 
-                Assert.That(result.Responses.Count, Is.EqualTo(1));
-                var response = result.Responses[0];
-                Assert.That(response.Href, Is.EqualTo("/" + fileName));
-                Assert.That(response.Found.LastModified, Is.EqualTo(lastModified));
-                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
-            }
-            finally
-            {
-                EnsureFileRemoved(tempPath);
-            }
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            var response = result.Responses[0];
+            Assert.That(response.Href, Is.EqualTo("/" + fileName));
+            Assert.That(response.Found.LastModified, Is.EqualTo(lastModified));
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
         }
 
         [Test]
         public void should_return_last_modified_of_directory()
         {
-            string tempPath = null;
-            try
-            {
-                var tempDir = Path.GetTempPath();
-                var fileName = Path.GetRandomFileName();
-                tempPath = Path.Combine(tempDir, fileName);
-                Directory.CreateDirectory(tempPath);
-                var lastModified = Directory.GetLastWriteTimeUtc(tempPath);
+            var tempDir = Path.GetTempPath();
+            var fileName = Path.GetRandomFileName();
+            var tempPath = CreateDirectory(Path.Combine(tempDir, fileName));
+            var lastModified = Directory.GetLastWriteTimeUtc(tempPath);
 
-                var request = new PropfindRequest { HasGetLastModified = true, PathInfo = "/" + fileName };
-                var result = fileSystem.Process(tempDir, request);
+            var request = new PropfindRequest { HasGetLastModified = true, PathInfo = "/" + fileName };
+            var result = fileSystem.Process(tempDir, request);
 
-                Assert.That(result.Responses.Count, Is.EqualTo(1));
-                var response = result.Responses[0];
-                Assert.That(response.Href, Is.EqualTo("/" + fileName));
-                Assert.That(response.Found.LastModified, Is.EqualTo(lastModified));
-                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
-            }
-            finally
-            {
-                EnsureDirectoryRemoved(tempPath);
-            }
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            var response = result.Responses[0];
+            Assert.That(response.Href, Is.EqualTo("/" + fileName));
+            Assert.That(response.Found.LastModified, Is.EqualTo(lastModified));
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
         }
 
         [Test]
         public void should_return_unhandled_dav_properties_as_not_found()
         {
-            string tempPath = null;
-            try
-            {
-                tempPath = Path.GetTempFileName();
-                var fileName = Path.GetFileName(tempPath);
+            var tempPath = AddPath(Path.GetTempFileName());
+            var fileName = Path.GetFileName(tempPath);
 
-                var request = new PropfindRequest { PathInfo = "/" + fileName, DavProperties = new List<string> { "displayname" } };
-                var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { PathInfo = "/" + fileName, DavProperties = new List<string> { "displayname" } };
+            var result = fileSystem.Process(Path.GetTempPath(), request);
 
-                Assert.That(result.Responses.Count, Is.EqualTo(1));
-                var response = result.Responses[0];
-                Assert.That(response.Href, Is.EqualTo("/" + fileName));
-                Assert.That(response.Found.Properties, Is.Empty);
-                Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
-                Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            var response = result.Responses[0];
+            Assert.That(response.Href, Is.EqualTo("/" + fileName));
+            Assert.That(response.Found.Properties, Is.Empty);
+            Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
+            Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
 
-                var displayNameProperty = response.NotFound.Properties[0];
-                Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("displayname"));
-                Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(Util.DavNamespace));
-            }
-            finally
-            {
-                EnsureFileRemoved(tempPath);
-            }
+            var displayNameProperty = response.NotFound.Properties[0];
+            Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("displayname"));
+            Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(Util.DavNamespace));
         }
 
         [Test]
         public void should_return_unhandled_properties_as_not_found()
         {
-            string tempPath = null;
-            try
-            {
-                tempPath = Path.GetTempFileName();
-                var fileName = Path.GetFileName(tempPath);
+            var tempPath = AddPath(Path.GetTempFileName());
+            var fileName = Path.GetFileName(tempPath);
 
-                XNamespace nameSpace = "http://example.com/neon/litmus/";
-                var element = new XElement(nameSpace + "foo", null);
-                var request = new PropfindRequest { PathInfo = "/" + fileName, NonDavProperties = new List<XElement> { element } };
-                var result = fileSystem.Process(Path.GetTempPath(), request);
+            XNamespace nameSpace = "http://example.com/neon/litmus/";
+            var element = new XElement(nameSpace + "foo", null);
+            var request = new PropfindRequest { PathInfo = "/" + fileName, NonDavProperties = new List<XElement> { element } };
+            var result = fileSystem.Process(Path.GetTempPath(), request);
 
-                Assert.That(result.Responses.Count, Is.EqualTo(1));
-                var response = result.Responses[0];
-                Assert.That(response.Href, Is.EqualTo("/" + fileName));
-                Assert.That(response.Found.Properties, Is.Empty);
-                Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
-                Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            var response = result.Responses[0];
+            Assert.That(response.Href, Is.EqualTo("/" + fileName));
+            Assert.That(response.Found.Properties, Is.Empty);
+            Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
+            Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
 
-                var displayNameProperty = response.NotFound.Properties[0];
-                Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("foo"));
-                Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(nameSpace));
-            }
-            finally
-            {
-                EnsureFileRemoved(tempPath);
-            }
-        }
-
-        void EnsureFileRemoved(string filePath)
-        {
-            if (File.Exists(filePath))
-                File.Delete(filePath);
-        }
-
-        void EnsureDirectoryRemoved(string filePath)
-        {
-            if (Directory.Exists(filePath))
-                Directory.Delete(filePath, true);
+            var displayNameProperty = response.NotFound.Properties[0];
+            Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("foo"));
+            Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(nameSpace));
         }
     }
 }
