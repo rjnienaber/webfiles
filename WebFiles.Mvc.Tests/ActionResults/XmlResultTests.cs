@@ -42,6 +42,8 @@ namespace WebFiles.Mvc.Tests.ActionResults
         public void should_set_content_type() 
         {
             response.SetupSet(r => r.ContentType = "application/xml");
+            response.SetupSet(r => r.StatusCode = 207);
+            response.SetupSet(r => r.StatusDescription = "Multi-Status");
             var writer = new StringWriter();
             response.Setup(r => r.Output).Returns(writer);
 

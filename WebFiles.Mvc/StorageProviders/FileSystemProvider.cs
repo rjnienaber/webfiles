@@ -12,7 +12,8 @@ namespace WebFiles.Mvc.Providers
     {
         public virtual string JoinPath(string basePath, string additionalPath)
         {
-            return Path.Combine(basePath.Replace("/", "\\"), additionalPath.Replace("/", "\\")).TrimEnd('\\');
+            return Path.Combine(basePath.Replace("/", "\\").TrimEnd('\\'), 
+                                additionalPath.Replace("/", "\\").Trim('\\'));
         }
 
         public virtual bool CheckExists(string fullPath)
@@ -91,18 +92,44 @@ namespace WebFiles.Mvc.Providers
         }
 
 
-        public MultiStatusResult Process(string rootPath, string pathInfo, PropfindRequest request)
+        public MultiStatusResult Process(string rootPath, PropfindRequest request)
         {
-            var fullPath = JoinPath(rootPath, pathInfo);
+            var fullPath = JoinPath(rootPath, request.PathInfo);
             var multiStatus = new MultiStatusResult();
-            if (request.HasResourceTypeProperty)
+            
+            var response = new Response { Href = request.PathInfo};
+            multiStatus.Responses.Add(response);
+            var isACollection = IsACollection(fullPath);
+            
+            if (request.HasGetContentLength)
             {
-                var response = new Response { Href = pathInfo };
-                response.Found.Status = "HTTP/1.1 200 Found";
-                if (IsACollection(fullPath))
-                    response.Found.AddCollectionProperty();
-                multiStatus.Responses.Add(response);
+                if (isACollection)
+                    response.NotFound.AddProperty("getcontentlength", null);
+                else
+                    response.Found.AddContentLength(new FileInfo(fullPath).Length);
             }
+
+            if (request.HasGetLastModified) {
+                if (isACollection)
+                    response.Found.AddLastModified(Directory.GetLastWriteTimeUtc(fullPath));
+                else
+                    response.Found.AddLastModified(File.GetLastWriteTimeUtc(fullPath));
+            }
+
+            if (request.HasResourceType)
+                response.Found.AddResourceType(isACollection);
+
+            if (response.Found.Properties.Any())
+                response.Found.Status = "HTTP/1.1 200 Found";
+
+            var supportedProperties = new[] { "getcontentlength", "getlastmodified", "resourcetype" };
+            foreach (var prop in request.DavProperties.Where(p => !supportedProperties.Contains(p)))
+                response.NotFound.AddProperty(prop, null);
+
+            response.NotFound.Properties.AddRange(request.NonDavProperties);
+
+            if (response.NotFound.Properties.Any())
+                response.NotFound.Status = "HTTP/1.1 404 Not Found";
 
             return multiStatus;
         }

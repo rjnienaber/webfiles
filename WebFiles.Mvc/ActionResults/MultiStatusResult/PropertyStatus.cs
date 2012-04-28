@@ -11,7 +11,9 @@ namespace WebFiles.Mvc.ActionResults
         public string Status { get; set; }
         public List<XElement> Properties { get; private set; }
         public XNamespace Dav = MultiStatusResult.Dav;
-        public bool IsCollection { get; set; }
+        public bool IsCollection { get; private set; }
+        public long ContentLength { get; private set; }
+        public DateTime LastModified { get; private set; }
 
         public PropertyStatus()
         {
@@ -30,12 +32,27 @@ namespace WebFiles.Mvc.ActionResults
             return property;
         }
 
-        public XElement AddCollectionProperty()
+        public XElement AddResourceType(bool isCollection)
         {
-            IsCollection = true;
-            var property = new XElement(Dav + "resourcetype",
-                               new XElement(Dav + "collection"));
+            IsCollection = isCollection;
+            var property = new XElement(Dav + "resourcetype", 
+                               isCollection ? new XElement(Dav + "collection") : null);
             Properties.Add(property);
+            return property;
+        }
+
+        public XElement AddContentLength(long contentLength)
+        {
+            ContentLength = contentLength;
+            return AddProperty("getcontentlength", contentLength.ToString());
+        }
+
+        public XElement AddLastModified(DateTime lastModified)
+        {
+            LastModified = lastModified;
+            var property = AddProperty("getlastmodified", lastModified.ToString("r"));
+            //XNamespace dateNs = "urn:uuid:c2f41010-65b3-11d1-a29f-00aa00c14882";
+            //property.SetAttributeValue(dateNs + "dt", "dateTime.rfc1123");
             return property;
         }
 
@@ -46,5 +63,6 @@ namespace WebFiles.Mvc.ActionResults
                         new XElement(Dav + "status", Status)
                     );
         }
+
     }
 }

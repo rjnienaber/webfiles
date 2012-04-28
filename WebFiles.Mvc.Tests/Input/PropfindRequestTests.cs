@@ -23,13 +23,13 @@ namespace WebFiles.Mvc.Tests.Input
     </prop>
 </propfind>";
 
-            var propFind = new PropfindRequest(XDocument.Parse(request));
+            var propFind = new PropfindRequest(null, XDocument.Parse(request));
 
             Assert.That(propFind.DavProperties.Count, Is.EqualTo(3));
             Assert.That(propFind.DavProperties[0], Is.EqualTo("getcontentlength"));
             Assert.That(propFind.DavProperties[1], Is.EqualTo("getlastmodified"));
             Assert.That(propFind.DavProperties[2], Is.EqualTo("displayname"));
-            Assert.That(propFind.HasResourceTypeProperty, Is.False);
+            Assert.That(propFind.HasResourceType, Is.False);
         }
 
         [Test]
@@ -41,10 +41,10 @@ namespace WebFiles.Mvc.Tests.Input
     </prop>
 </propfind>";
 
-            var propFind = new PropfindRequest(XDocument.Parse(request));
+            var propFind = new PropfindRequest(null, XDocument.Parse(request));
 
-            Assert.That(propFind.DavProperties.Count, Is.EqualTo(0));
-            Assert.That(propFind.HasResourceTypeProperty, Is.True);
+            Assert.That(propFind.DavProperties.Count, Is.EqualTo(1));
+            Assert.That(propFind.HasResourceType, Is.True);
         }
 
         [Test]
@@ -57,7 +57,7 @@ namespace WebFiles.Mvc.Tests.Input
     </prop>
 </propfind>";
 
-            var propFind = new PropfindRequest(XDocument.Parse(request));
+            var propFind = new PropfindRequest(null, XDocument.Parse(request));
 
             Assert.That(propFind.NonDavProperties.Count, Is.EqualTo(2));
             Assert.That(propFind.NonDavProperties[0].Name.LocalName, Is.EqualTo("foo"));

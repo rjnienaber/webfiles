@@ -6,6 +6,7 @@ using NUnit.Framework;
 using System.IO;
 using WebFiles.Mvc.Providers;
 using WebFiles.Mvc.Requests;
+using System.Xml.Linq;
 
 namespace WebFiles.Mvc.Tests
 {
@@ -300,8 +301,8 @@ namespace WebFiles.Mvc.Tests
                 tempDir = Path.Combine(tempPath, newDir);
                 Directory.CreateDirectory(tempDir);
 
-                var request = new PropfindRequest { HasResourceTypeProperty = true };
-                var result = fileSystem.Process(tempPath, newDir, request);
+                var request = new PropfindRequest { HasResourceType = true, PathInfo = newDir };
+                var result = fileSystem.Process(tempPath, request);
 
                 Assert.That(result.Responses.Count, Is.EqualTo(1));
                 var response = result.Responses[0];
@@ -312,6 +313,197 @@ namespace WebFiles.Mvc.Tests
             finally
             {
                 EnsureDirectoryRemoved(tempDir);
+            }
+        }
+
+        [Test]
+        public void should_return_empty_resourcetype_when_not_dir()
+        {
+            string tempPath = null;
+            try
+            {
+                tempPath = Path.GetTempFileName();
+                var fileName = Path.GetFileName(tempPath);
+
+                var request = new PropfindRequest { HasResourceType = true, PathInfo = "/" + tempPath};
+                var result = fileSystem.Process(Path.GetTempPath(), request);
+
+                Assert.That(result.Responses.Count, Is.EqualTo(1));
+                var response = result.Responses[0];
+                Assert.That(response.Href, Is.EqualTo("/" + tempPath));
+                Assert.That(response.Found.IsCollection, Is.False);
+                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            }
+            finally
+            {
+                EnsureFileRemoved(tempPath);
+            }
+        }
+
+        [Test]
+        public void should_return_content_length_of_file()
+        {
+            string tempPath = null;
+            try
+            {
+                tempPath = Path.GetTempFileName();
+                var fileName = Path.GetFileName(tempPath);
+                File.WriteAllBytes(tempPath, new byte[] { 23, 45, 45 });
+
+                var request = new PropfindRequest { HasGetContentLength = true, PathInfo = "/" + fileName };
+                var result = fileSystem.Process(Path.GetTempPath(), request);
+
+                Assert.That(result.Responses.Count, Is.EqualTo(1));
+                var response = result.Responses[0];
+                Assert.That(response.Href, Is.EqualTo("/" + fileName));
+                Assert.That(response.Found.ContentLength, Is.EqualTo(3));
+                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            }
+            finally
+            {
+                EnsureFileRemoved(tempPath);
+            }
+        }
+
+        [Test]
+        public void should_not_return_content_length_of_directory()
+        {
+            string tempPath = null;
+            try
+            {
+                var tempDir = Path.GetTempPath();
+                var newDir = Path.GetRandomFileName();
+                tempPath = Path.Combine(tempDir, newDir);
+                Directory.CreateDirectory(tempPath);
+
+                var request = new PropfindRequest { HasGetContentLength = true, PathInfo = "/" + newDir};
+                var result = fileSystem.Process(tempDir, request);
+
+                Assert.That(result.Responses.Count, Is.EqualTo(1));
+                var response = result.Responses[0];
+                Assert.That(response.Href, Is.EqualTo("/" + newDir));
+                Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
+                Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
+
+                var displayNameProperty = response.NotFound.Properties[0];
+                Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("getcontentlength"));
+                Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(Util.DavNamespace));
+            }
+            finally
+            {
+                EnsureDirectoryRemoved(tempPath);
+            }
+        }
+
+        [Test]
+        public void should_return_last_modified_of_file()
+        {
+            string tempPath = null;
+            try
+            {
+                tempPath = Path.GetTempFileName();
+                var fileName = Path.GetFileName(tempPath);
+                var lastModified = File.GetLastWriteTimeUtc(tempPath);
+
+                var request = new PropfindRequest { HasGetLastModified = true, PathInfo = "/" + fileName };
+                var result = fileSystem.Process(Path.GetTempPath(), request);
+
+                Assert.That(result.Responses.Count, Is.EqualTo(1));
+                var response = result.Responses[0];
+                Assert.That(response.Href, Is.EqualTo("/" + fileName));
+                Assert.That(response.Found.LastModified, Is.EqualTo(lastModified));
+                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            }
+            finally
+            {
+                EnsureFileRemoved(tempPath);
+            }
+        }
+
+        [Test]
+        public void should_return_last_modified_of_directory()
+        {
+            string tempPath = null;
+            try
+            {
+                var tempDir = Path.GetTempPath();
+                var fileName = Path.GetRandomFileName();
+                tempPath = Path.Combine(tempDir, fileName);
+                Directory.CreateDirectory(tempPath);
+                var lastModified = Directory.GetLastWriteTimeUtc(tempPath);
+
+                var request = new PropfindRequest { HasGetLastModified = true, PathInfo = "/" + fileName };
+                var result = fileSystem.Process(tempDir, request);
+
+                Assert.That(result.Responses.Count, Is.EqualTo(1));
+                var response = result.Responses[0];
+                Assert.That(response.Href, Is.EqualTo("/" + fileName));
+                Assert.That(response.Found.LastModified, Is.EqualTo(lastModified));
+                Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            }
+            finally
+            {
+                EnsureDirectoryRemoved(tempPath);
+            }
+        }
+
+        [Test]
+        public void should_return_unhandled_dav_properties_as_not_found()
+        {
+            string tempPath = null;
+            try
+            {
+                tempPath = Path.GetTempFileName();
+                var fileName = Path.GetFileName(tempPath);
+
+                var request = new PropfindRequest { PathInfo = "/" + fileName, DavProperties = new List<string> { "displayname" } };
+                var result = fileSystem.Process(Path.GetTempPath(), request);
+
+                Assert.That(result.Responses.Count, Is.EqualTo(1));
+                var response = result.Responses[0];
+                Assert.That(response.Href, Is.EqualTo("/" + fileName));
+                Assert.That(response.Found.Properties, Is.Empty);
+                Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
+                Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
+
+                var displayNameProperty = response.NotFound.Properties[0];
+                Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("displayname"));
+                Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(Util.DavNamespace));
+            }
+            finally
+            {
+                EnsureFileRemoved(tempPath);
+            }
+        }
+
+        [Test]
+        public void should_return_unhandled_properties_as_not_found()
+        {
+            string tempPath = null;
+            try
+            {
+                tempPath = Path.GetTempFileName();
+                var fileName = Path.GetFileName(tempPath);
+
+                XNamespace nameSpace = "http://example.com/neon/litmus/";
+                var element = new XElement(nameSpace + "foo", null);
+                var request = new PropfindRequest { PathInfo = "/" + fileName, NonDavProperties = new List<XElement> { element } };
+                var result = fileSystem.Process(Path.GetTempPath(), request);
+
+                Assert.That(result.Responses.Count, Is.EqualTo(1));
+                var response = result.Responses[0];
+                Assert.That(response.Href, Is.EqualTo("/" + fileName));
+                Assert.That(response.Found.Properties, Is.Empty);
+                Assert.That(response.NotFound.Status, Is.EqualTo("HTTP/1.1 404 Not Found"));
+                Assert.That(response.NotFound.Properties.Count, Is.EqualTo(1));
+
+                var displayNameProperty = response.NotFound.Properties[0];
+                Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("foo"));
+                Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(nameSpace));
+            }
+            finally
+            {
+                EnsureFileRemoved(tempPath);
             }
         }
 

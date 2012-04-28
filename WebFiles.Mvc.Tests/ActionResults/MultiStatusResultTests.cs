@@ -47,6 +47,32 @@ namespace WebFiles.Mvc.Tests.ActionResults
         }
 
         [Test]
+        public void adding_last_modified_property_should_be_returned_in_xml()
+        {
+            var response = new Response { Href = "/public/litmus" };
+            response.Found.Status = "HTTP/1.1 200 OK";
+            var dateTime = new DateTime(2012, 4, 23, 23, 09, 47);
+            response.Found.AddLastModified(dateTime);
+            var multiStatus = new MultiStatusResult();
+            multiStatus.Responses.Add(response);
+            var result = multiStatus.ToString();
+
+            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
+  <response>
+    <href>/public/litmus</href>
+    <propstat>
+      <prop>
+        <getlastmodified>Mon, 23 Apr 2012 23:09:47 GMT</getlastmodified>
+      </prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+</multistatus>"));
+            Assert.That(response.Found.LastModified, Is.EqualTo(dateTime));
+        }
+
+
+        [Test]
         public void adding_not_found_property_should_be_returned_in_xml()
         {
             var response = new Response { Href = "/public/litmus" };
@@ -74,7 +100,7 @@ namespace WebFiles.Mvc.Tests.ActionResults
         {
             var response = new Response { Href = "/public/litmus" };
             response.Found.Status = "HTTP/1.1 200 Found";
-            response.Found.AddCollectionProperty();
+            response.Found.AddResourceType(true);
             var multiStatus = new MultiStatusResult();
             multiStatus.Responses.Add(response);
             var result = multiStatus.ToString();
@@ -93,6 +119,54 @@ namespace WebFiles.Mvc.Tests.ActionResults
   </response>
 </multistatus>"));
             Assert.That(response.Found.IsCollection, Is.True);
+        }
+
+        [Test]
+        public void mark_response_as_empty_resource_type()
+        {
+            var response = new Response { Href = "/public/litmus" };
+            response.Found.Status = "HTTP/1.1 200 Found";
+            response.Found.AddResourceType(false);
+            var multiStatus = new MultiStatusResult();
+            multiStatus.Responses.Add(response);
+            var result = multiStatus.ToString();
+
+            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
+  <response>
+    <href>/public/litmus</href>
+    <propstat>
+      <prop>
+        <resourcetype />
+      </prop>
+      <status>HTTP/1.1 200 Found</status>
+    </propstat>
+  </response>
+</multistatus>"));
+            Assert.That(response.Found.IsCollection, Is.False);
+        }
+
+        [Test]
+        public void set_content_length_property()
+        {
+            var response = new Response { Href = "/public/litmus" };
+            response.Found.Status = "HTTP/1.1 200 Found";
+            response.Found.AddContentLength(4096);
+            var multiStatus = new MultiStatusResult();
+            multiStatus.Responses.Add(response);
+            var result = multiStatus.ToString();
+
+            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
+  <response>
+    <href>/public/litmus</href>
+    <propstat>
+      <prop>
+        <getcontentlength>4096</getcontentlength>
+      </prop>
+      <status>HTTP/1.1 200 Found</status>
+    </propstat>
+  </response>
+</multistatus>"));
+            Assert.That(response.Found.ContentLength, Is.EqualTo(4096));
         }
 
         [Test]

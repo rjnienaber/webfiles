@@ -19,6 +19,8 @@ namespace WebFiles.Mvc.ActionResults
         {
             var response = context.HttpContext.Response;
             response.ContentType = "application/xml";
+            response.StatusCode = 207;
+            response.StatusDescription = "Multi-Status";
             var writer = new XmlTextWriter(response.Output);
             Construct().WriteTo(writer);
         }

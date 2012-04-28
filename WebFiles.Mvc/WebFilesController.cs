@@ -36,7 +36,7 @@ namespace WebFiles.Mvc
             try
             {
                 using (var streamReader = new StreamReader(Request.InputStream, config.RequestEncoding))
-                    return Propfind(pathInfo, new PropfindRequest(XDocument.Load(streamReader)));
+                    return Propfind(new PropfindRequest(pathInfo, XDocument.Load(streamReader)));
             }
             catch (XmlException e)
             {
@@ -44,13 +44,17 @@ namespace WebFiles.Mvc
             }
         }
 
-        public virtual ActionResult Propfind(string pathInfo, PropfindRequest request)
+        public virtual ActionResult Propfind(PropfindRequest request)
         {
-            var fullPath = storageProvider.JoinPath(config.RootPath, pathInfo);
+            var fullPath = storageProvider.JoinPath(config.RootPath, request.PathInfo);
             if (!storageProvider.CheckExists(fullPath))
                 throw new HttpException(404, "path doesn't exist");
 
-            return storageProvider.Process(config.RootPath, pathInfo, request);
+            var result = storageProvider.Process(config.RootPath, request);
+            foreach (var response in result.Responses)
+                response.Href = Request.Url.LocalPath.Replace(request.PathInfo, response.Href);
+
+            return result;
         }
 
         [AcceptVerbs("COPY")]
