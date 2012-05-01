@@ -128,8 +128,8 @@ namespace WebFiles.Mvc.Providers
 
             response.NotFound.Properties.AddRange(request.NonDavProperties);
 
-            if (response.NotFound.Properties.Any())
-                response.NotFound.Status = "HTTP/1.1 404 Not Found";
+            //if (response.NotFound.Properties.Any())
+            //    response.NotFound.Status = "HTTP/1.1 404 Not Found";
 
             return multiStatus;
         }

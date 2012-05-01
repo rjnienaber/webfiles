@@ -18,7 +18,7 @@ namespace WebFiles.Mvc.Tests.ActionResults
             var multiStatus = new MultiStatusResult();
             var result = multiStatus.ToString();
 
-            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"" />"));
+            Assert.That(result, Is.EqualTo(@"<d:multistatus xmlns:d=""DAV:"" />"));
         }
 
         [Test]
@@ -33,17 +33,17 @@ namespace WebFiles.Mvc.Tests.ActionResults
             multiStatus.Responses.Add(response);
             var result = multiStatus.ToString();
 
-            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
-  <response>
-    <href>/public/litmus</href>
-    <propstat>
-      <prop>
-        <getlastmodified p5:dt=""dateTime.rfc1123"" xmlns:p5=""urn:uuid:c2f41010-65b3-11d1-a29f-00aa00c14882"">Mon, 23 Apr 2012 23:09:47 GMT</getlastmodified>
-      </prop>
-      <status>HTTP/1.1 200 OK</status>
-    </propstat>
-  </response>
-</multistatus>"));
+            Assert.That(result, Is.EqualTo(@"<d:multistatus xmlns:d=""DAV:"">
+  <d:response>
+    <d:href>/public/litmus</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:getlastmodified p5:dt=""dateTime.rfc1123"" xmlns:p5=""urn:uuid:c2f41010-65b3-11d1-a29f-00aa00c14882"">Mon, 23 Apr 2012 23:09:47 GMT</d:getlastmodified>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>"));
         }
 
         [Test]
@@ -57,17 +57,17 @@ namespace WebFiles.Mvc.Tests.ActionResults
             multiStatus.Responses.Add(response);
             var result = multiStatus.ToString();
 
-            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
-  <response>
-    <href>/public/litmus</href>
-    <propstat>
-      <prop>
-        <getlastmodified>Mon, 23 Apr 2012 23:09:47 GMT</getlastmodified>
-      </prop>
-      <status>HTTP/1.1 200 OK</status>
-    </propstat>
-  </response>
-</multistatus>"));
+            Assert.That(result, Is.EqualTo(@"<d:multistatus xmlns:d=""DAV:"">
+  <d:response>
+    <d:href>/public/litmus</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:getlastmodified>Mon, 23 Apr 2012 23:09:47 GMT</d:getlastmodified>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>"));
             Assert.That(response.Found.LastModified, Is.EqualTo(dateTime));
         }
 
@@ -82,17 +82,17 @@ namespace WebFiles.Mvc.Tests.ActionResults
             multiStatus.Responses.Add(response);
             var result = multiStatus.ToString();
 
-            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
-  <response>
-    <href>/public/litmus</href>
-    <propstat>
-      <prop>
-        <getlastmodified />
-      </prop>
-      <status>HTTP/1.1 404 Not Found</status>
-    </propstat>
-  </response>
-</multistatus>"));
+            Assert.That(result, Is.EqualTo(@"<d:multistatus xmlns:d=""DAV:"">
+  <d:response>
+    <d:href>/public/litmus</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:getlastmodified />
+      </d:prop>
+      <d:status>HTTP/1.1 404 Not Found</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>"));
         }
 
         [Test]
@@ -105,19 +105,19 @@ namespace WebFiles.Mvc.Tests.ActionResults
             multiStatus.Responses.Add(response);
             var result = multiStatus.ToString();
 
-            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
-  <response>
-    <href>/public/litmus</href>
-    <propstat>
-      <prop>
-        <resourcetype>
-          <collection />
-        </resourcetype>
-      </prop>
-      <status>HTTP/1.1 200 Found</status>
-    </propstat>
-  </response>
-</multistatus>"));
+            Assert.That(result, Is.EqualTo(@"<d:multistatus xmlns:d=""DAV:"">
+  <d:response>
+    <d:href>/public/litmus</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype>
+          <d:collection />
+        </d:resourcetype>
+      </d:prop>
+      <d:status>HTTP/1.1 200 Found</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>"));
             Assert.That(response.Found.IsCollection, Is.True);
         }
 
@@ -131,17 +131,17 @@ namespace WebFiles.Mvc.Tests.ActionResults
             multiStatus.Responses.Add(response);
             var result = multiStatus.ToString();
 
-            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
-  <response>
-    <href>/public/litmus</href>
-    <propstat>
-      <prop>
-        <resourcetype />
-      </prop>
-      <status>HTTP/1.1 200 Found</status>
-    </propstat>
-  </response>
-</multistatus>"));
+            Assert.That(result, Is.EqualTo(@"<d:multistatus xmlns:d=""DAV:"">
+  <d:response>
+    <d:href>/public/litmus</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype />
+      </d:prop>
+      <d:status>HTTP/1.1 200 Found</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>"));
             Assert.That(response.Found.IsCollection, Is.False);
         }
 
@@ -155,17 +155,17 @@ namespace WebFiles.Mvc.Tests.ActionResults
             multiStatus.Responses.Add(response);
             var result = multiStatus.ToString();
 
-            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
-  <response>
-    <href>/public/litmus</href>
-    <propstat>
-      <prop>
-        <getcontentlength>4096</getcontentlength>
-      </prop>
-      <status>HTTP/1.1 200 Found</status>
-    </propstat>
-  </response>
-</multistatus>"));
+            Assert.That(result, Is.EqualTo(@"<d:multistatus xmlns:d=""DAV:"">
+  <d:response>
+    <d:href>/public/litmus</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:getcontentlength>4096</d:getcontentlength>
+      </d:prop>
+      <d:status>HTTP/1.1 200 Found</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>"));
             Assert.That(response.Found.ContentLength, Is.EqualTo(4096));
         }
 
@@ -179,17 +179,17 @@ namespace WebFiles.Mvc.Tests.ActionResults
             multiStatus.Responses.Add(response);
             var result = multiStatus.ToString();
 
-            Assert.That(result, Is.EqualTo(@"<multistatus xmlns=""DAV:"">
-  <response>
-    <href>/public/litmus</href>
-    <propstat>
-      <prop>
+            Assert.That(result, Is.EqualTo(@"<d:multistatus xmlns:d=""DAV:"">
+  <d:response>
+    <d:href>/public/litmus</d:href>
+    <d:propstat>
+      <d:prop>
         <foo xmlns=""http://example.com/neon/litmus/"" />
-      </prop>
-      <status>HTTP/1.1 200 Found</status>
-    </propstat>
-  </response>
-</multistatus>"));
+      </d:prop>
+      <d:status>HTTP/1.1 200 Found</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>"));
         }
     }
 }

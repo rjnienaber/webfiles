@@ -63,6 +63,7 @@ namespace WebFiles.Mvc
                     response.Href = Request.Url.LocalPath;
                 else
                     response.Href = Request.Url.LocalPath.Replace(request.PathInfo, response.Href);
+
             return result;
         }
 

@@ -18,7 +18,8 @@ namespace WebFiles.Mvc.ActionResults
 
         protected override XDocument Construct()
         {
-            return new XDocument(new XElement(Dav + "multistatus", Responses.Select(r => r.ToXElement())));
+            var dav = new XAttribute(XNamespace.Xmlns + "d", Dav);
+            return new XDocument(new XElement(Dav + "multistatus", dav, Responses.Select(r => r.ToXElement())));
         }
     }
 }
