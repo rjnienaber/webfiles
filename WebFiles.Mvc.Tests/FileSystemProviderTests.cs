@@ -232,7 +232,7 @@ namespace WebFiles.Mvc.Tests
             var response = result.Responses[0];
             Assert.That(response.Href, Is.EqualTo(newDir));
             Assert.That(response.Found.IsCollection, Is.True);
-            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
 
         [Test]
@@ -248,7 +248,7 @@ namespace WebFiles.Mvc.Tests
             var response = result.Responses[0];
             Assert.That(response.Href, Is.EqualTo("/" + tempPath));
             Assert.That(response.Found.IsCollection, Is.False);
-            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
 
         [Test]
@@ -265,7 +265,7 @@ namespace WebFiles.Mvc.Tests
             var response = result.Responses[0];
             Assert.That(response.Href, Is.EqualTo("/" + fileName));
             Assert.That(response.Found.ContentLength, Is.EqualTo(3));
-            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
 
         [Test]
@@ -303,7 +303,7 @@ namespace WebFiles.Mvc.Tests
             var response = result.Responses[0];
             Assert.That(response.Href, Is.EqualTo("/" + fileName));
             Assert.That(response.Found.LastModified, Is.EqualTo(lastModified));
-            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
 
         [Test]
@@ -321,7 +321,7 @@ namespace WebFiles.Mvc.Tests
             var response = result.Responses[0];
             Assert.That(response.Href, Is.EqualTo("/" + fileName));
             Assert.That(response.Found.LastModified, Is.EqualTo(lastModified));
-            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 Found"));
+            Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
 
         [Test]

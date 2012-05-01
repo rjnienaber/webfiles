@@ -23,7 +23,7 @@ namespace WebFiles.Mvc.Tests.Input
     </prop>
 </propfind>";
 
-            var propFind = new PropfindRequest(null, XDocument.Parse(request));
+            var propFind = new PropfindRequest(null, null, XDocument.Parse(request));
 
             Assert.That(propFind.DavProperties.Count, Is.EqualTo(3));
             Assert.That(propFind.DavProperties[0], Is.EqualTo("getcontentlength"));
@@ -41,7 +41,7 @@ namespace WebFiles.Mvc.Tests.Input
     </prop>
 </propfind>";
 
-            var propFind = new PropfindRequest(null, XDocument.Parse(request));
+            var propFind = new PropfindRequest(null, null, XDocument.Parse(request));
 
             Assert.That(propFind.DavProperties.Count, Is.EqualTo(1));
             Assert.That(propFind.HasResourceType, Is.True);
@@ -57,7 +57,7 @@ namespace WebFiles.Mvc.Tests.Input
     </prop>
 </propfind>";
 
-            var propFind = new PropfindRequest(null, XDocument.Parse(request));
+            var propFind = new PropfindRequest(null, null, XDocument.Parse(request));
 
             Assert.That(propFind.NonDavProperties.Count, Is.EqualTo(2));
             Assert.That(propFind.NonDavProperties[0].Name.LocalName, Is.EqualTo("foo"));
@@ -65,5 +65,15 @@ namespace WebFiles.Mvc.Tests.Input
             Assert.That(propFind.NonDavProperties[1].Name.LocalName, Is.EqualTo("bar"));
             Assert.That(propFind.NonDavProperties[1].Name.Namespace.NamespaceName, Is.EqualTo("http://example.com/neon/litmus/"));
         }
+
+        [Test]
+        public void should_handle_depth_header()
+        {
+            var request = @"<propfind xmlns=""DAV:""><prop /></propfind>";
+
+            var propFind = new PropfindRequest(null, null, XDocument.Parse(request));
+            Assert.That(propFind.Depth, Is.EqualTo(0));
+        }
+
     }
 }

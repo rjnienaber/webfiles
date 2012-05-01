@@ -33,10 +33,17 @@ namespace WebFiles.Mvc
         [ActionName(ActionName)]
         public ActionResult Propfind(string pathInfo)
         {
+            pathInfo = pathInfo ?? "";
+            var depth = Request.Headers["Depth"];
             try
             {
-                using (var streamReader = new StreamReader(Request.InputStream, config.RequestEncoding))
-                    return Propfind(new PropfindRequest(pathInfo, XDocument.Load(streamReader)));
+                if (Request.ContentLength > 0)
+                    using (var streamReader = new StreamReader(Request.InputStream, config.RequestEncoding))
+                        return Propfind(new PropfindRequest(pathInfo, depth, XDocument.Load(streamReader)));
+                else
+                {
+                    return Propfind(new PropfindRequest(pathInfo, depth));
+                }
             }
             catch (XmlException e)
             {
@@ -44,7 +51,7 @@ namespace WebFiles.Mvc
             }
         }
 
-        public virtual ActionResult Propfind(PropfindRequest request)
+        public virtual MultiStatusResult Propfind(PropfindRequest request)
         {
             var fullPath = storageProvider.JoinPath(config.RootPath, request.PathInfo);
             if (!storageProvider.CheckExists(fullPath))
@@ -52,10 +59,26 @@ namespace WebFiles.Mvc
 
             var result = storageProvider.Process(config.RootPath, request);
             foreach (var response in result.Responses)
-                response.Href = Request.Url.LocalPath.Replace(request.PathInfo, response.Href);
-
+                if (request.PathInfo == "")
+                    response.Href = Request.Url.LocalPath;
+                else
+                    response.Href = Request.Url.LocalPath.Replace(request.PathInfo, response.Href);
             return result;
         }
+
+        [AcceptVerbs("PROPPATCH")]
+        [ActionName(ActionName)]
+        public ActionResult Proppatch(string pathInfo)
+        {
+            return Proppatch(pathInfo, null);
+        }
+
+
+        public virtual ActionResult Proppatch(string pathInfo, string test)
+        {
+            return new MultiStatusResult();
+        }
+
 
         [AcceptVerbs("COPY")]
         [ActionName(ActionName)]
@@ -179,7 +202,7 @@ namespace WebFiles.Mvc
         public virtual NoContentResult Options(string pathInfo)
         {
             var result = new NoContentResult(200);
-            result.Headers.Add("Allow", "OPTIONS, DELETE, MKCOL, PUT, GET, PROPFIND, PROPPATCH, COPY, MOVE");
+            result.Headers.Add("Allow", "OPTIONS, DELETE, MKCOL, PUT, GET, PROPFIND, COPY, MOVE");
             result.Headers.Add("DAV", "1, 2");
             return result;
         }

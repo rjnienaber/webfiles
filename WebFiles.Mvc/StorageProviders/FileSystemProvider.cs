@@ -120,7 +120,7 @@ namespace WebFiles.Mvc.Providers
                 response.Found.AddResourceType(isACollection);
 
             if (response.Found.Properties.Any())
-                response.Found.Status = "HTTP/1.1 200 Found";
+                response.Found.Status = "HTTP/1.1 200 OK";
 
             var supportedProperties = new[] { "getcontentlength", "getlastmodified", "resourcetype" };
             foreach (var prop in request.DavProperties.Where(p => !supportedProperties.Contains(p)))

@@ -157,7 +157,7 @@ namespace WebFiles.Mvc.Tests.Litmus
             Assert.That(result.ContentType, Is.EqualTo("text/html"));
             Assert.That(result.Content, Is.EqualTo(""));
             Assert.That(result.HttpStatusCode, Is.EqualTo(200));
-            Assert.That(result.Headers["Allow"], Is.EqualTo("OPTIONS, DELETE, MKCOL, PUT, GET, PROPFIND, PROPPATCH, COPY, MOVE"));
+            Assert.That(result.Headers["Allow"], Is.EqualTo("OPTIONS, DELETE, MKCOL, PUT, GET, PROPFIND, COPY, MOVE"));
             Assert.That(result.Headers["Dav"], Is.EqualTo("1, 2"));
         }
 

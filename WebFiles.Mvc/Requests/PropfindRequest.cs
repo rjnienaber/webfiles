@@ -10,6 +10,8 @@ namespace WebFiles.Mvc.Requests
     {
         public XDocument XmlRequest { get; private set; }
         public string PathInfo { get; set; }
+        public int Depth { get; set; }
+
         public List<string> DavProperties { get; set; }
         public List<XElement> NonDavProperties { get; set; }
 
@@ -19,16 +21,35 @@ namespace WebFiles.Mvc.Requests
 
         XNamespace Dav = Util.DavNamespace;
 
-        public PropfindRequest()
+        internal PropfindRequest()
         {
             DavProperties = new List<string>();
             NonDavProperties = new List<XElement>();
         }
 
-        public PropfindRequest(string pathInfo, XDocument document)
+        public PropfindRequest(string pathInfo, string depth) : this()
+        {
+            HasGetContentLength = true;
+            HasGetLastModified = true;
+            HasResourceType = true;
+            PathInfo = pathInfo;
+            Depth = ParseDepth(depth);
+        }
+
+        int ParseDepth(string depth)
+        {
+            int value;
+            if (int.TryParse(depth, out value))
+                return value;
+            return 0;
+        }
+
+        public PropfindRequest(string pathInfo, string depth, XDocument document)
         {
             PathInfo = pathInfo;
+            Depth = ParseDepth(depth);
             XmlRequest = document;
+
             var properties = XmlRequest.Descendants().First().Descendants().First().Descendants();
             
             DavProperties = properties.Where(d => d.Name.Namespace == Dav).Select(e => e.Name.LocalName).ToList();
@@ -39,5 +60,6 @@ namespace WebFiles.Mvc.Requests
 
             NonDavProperties = properties.Where(d => d.GetDefaultNamespace() != Dav).ToList();
         }
+
     }
 }

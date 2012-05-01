@@ -54,13 +54,48 @@ namespace WebFiles.Mvc.Tests.Litmus
             ms.Write(bytes, 0, bytes.Length);
             ms.Position = 0;
 
+            request.Setup(r => r.ContentLength).Returns(bytes.Length);
             request.Setup(r => r.InputStream).Returns(ms);
+            request.Setup(r => r.Headers).Returns(new NameValueCollection());
             context.Setup(c => c.Request).Returns(request.Object);
 
             var exception = Assert.Throws<HttpException>(() => controller.Propfind("litmus/"));
 
             Assert.That(exception.GetHttpCode(), Is.EqualTo(400));
             Assert.That(exception.Message, Is.EqualTo("malformed xml request body"));
+        }
+
+        [Test]
+        public void PROPFIND_should_not_fail_on_empty_input_stream()
+        {
+            request.Setup(r => r.ContentLength).Returns(0);
+            request.Setup(r => r.Headers).Returns(new NameValueCollection());
+            context.Setup(c => c.Request).Returns(request.Object);
+
+            provider.Setup(p => p.JoinPath(It.IsAny<string>(), It.IsAny<string>())).Returns(It.IsAny<string>());
+            provider.Setup(p => p.CheckExists(It.IsAny<string>())).Returns(true);
+            var multiStatusResult = new MultiStatusResult();
+
+            //empty propfind should return all dav properties
+            provider.Setup(p => p.Process(It.IsAny<string>(), It.IsAny<PropfindRequest>())).Callback<string, PropfindRequest>((s, r) =>
+            {
+                Assert.That(r.HasGetContentLength, Is.True);
+                Assert.That(r.HasGetLastModified, Is.True);
+                Assert.That(r.HasResourceType, Is.True);
+                Assert.That(r.NonDavProperties.Any(), Is.False);
+                Assert.That(r.DavProperties.Any(), Is.False);
+            }).Returns(multiStatusResult);
+
+            var result = controller.Propfind("litmus/");
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Is.SameAs(multiStatusResult));
+        }
+
+        [Test, Ignore]
+        public void PROPFIND_should_pass_through_an_empty_path_info()
+        {
+
         }
 
         [Test]
@@ -79,7 +114,6 @@ namespace WebFiles.Mvc.Tests.Litmus
             var result = controller.Propfind(request) as MultiStatusResult;
 
             Assert.That(result, Is.Not.Null);
-
             Assert.That(result, Is.SameAs(multiStatusResult));
         }
 
@@ -89,7 +123,7 @@ namespace WebFiles.Mvc.Tests.Litmus
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.Url).Returns(new Uri("http://localhost/web/files/litmus/"));
 
-            var propFind = new PropfindRequest { PathInfo = "litmus/" };
+            var propFind = new PropfindRequest("litmus/", null);
             provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/")).Returns("D:\\stuff\\litmus");
             provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
 
@@ -104,6 +138,28 @@ namespace WebFiles.Mvc.Tests.Litmus
 
             Assert.That(result.Responses[0].Href, Is.EqualTo("/web/files/litmus/test"));
             Assert.That(result.Responses[1].Href, Is.EqualTo("/web/files/litmus/test2"));
+        }
+
+        [Test]
+        public void PROPFIND_should_handle_empty_url_when_rewriting_response_href()
+        {
+            context.Setup(c => c.Request).Returns(request.Object);
+            request.Setup(r => r.Url).Returns(new Uri("http://localhost/web/files/litmus"));
+
+            var propFind = new PropfindRequest { PathInfo = "" };
+            provider.Setup(p => p.JoinPath(It.IsAny<string>(), It.IsAny<string>())).Returns(It.IsAny<string>());
+            provider.Setup(p => p.CheckExists(It.IsAny<string>())).Returns(true);
+
+            var multiStatusResult = new MultiStatusResult();
+            multiStatusResult.Responses.Add(new Response { Href = "" });
+            provider.Setup(p => p.Process(It.IsAny<string>(), propFind)).Returns(multiStatusResult);
+
+            var result = controller.Propfind(propFind) as MultiStatusResult;
+
+            Assert.That(result, Is.SameAs(multiStatusResult));
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+
+            Assert.That(result.Responses[0].Href, Is.EqualTo("/web/files/litmus"));
         }
     }
 }
