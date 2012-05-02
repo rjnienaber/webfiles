@@ -94,10 +94,18 @@ namespace WebFiles.Mvc.Providers
 
         public MultiStatusResult Process(string rootPath, PropfindRequest request)
         {
-            var fullPath = JoinPath(rootPath, request.PathInfo);
             var multiStatus = new MultiStatusResult();
-            
-            var response = new Response { Href = request.PathInfo};
+
+            Process(request, rootPath, request.PathInfo, request.Depth, multiStatus);
+
+            return multiStatus;
+        }
+
+        void Process(PropfindRequest request, string rootPath, string relativePath, int depth, MultiStatusResult multiStatus)
+        {
+            var fullPath = JoinPath(rootPath, relativePath);
+
+            var response = new Response { Href = relativePath };
             multiStatus.Responses.Add(response);
             var isACollection = IsACollection(fullPath);
             
@@ -128,10 +136,25 @@ namespace WebFiles.Mvc.Providers
 
             response.NotFound.Properties.AddRange(request.NonDavProperties);
 
-            //if (response.NotFound.Properties.Any())
-            //    response.NotFound.Status = "HTTP/1.1 404 Not Found";
+            if (response.NotFound.Properties.Any())
+                response.NotFound.Status = "HTTP/1.1 404 Not Found";
 
-            return multiStatus;
+            if (depth == 0)
+                return;
+
+            if (isACollection)
+            {
+                //process files
+                var files = Directory.GetFiles(fullPath);
+                foreach (var file in files)
+                    Process(request, rootPath, relativePath + '/' + Path.GetFileName(file), 0, multiStatus);
+
+                //process directories
+                var dirs = Directory.GetDirectories(fullPath);
+                foreach (var dir in dirs)
+                    Process(request, rootPath, relativePath + '/' + Path.GetFileName(dir) + "/", depth - 1, multiStatus);
+
+            }
         }
     }
 }

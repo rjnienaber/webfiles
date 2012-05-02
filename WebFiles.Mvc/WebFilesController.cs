@@ -33,7 +33,7 @@ namespace WebFiles.Mvc
         [ActionName(ActionName)]
         public ActionResult Propfind(string pathInfo)
         {
-            pathInfo = pathInfo ?? "";
+            pathInfo = pathInfo ?? "/";
             var depth = Request.Headers["Depth"];
             try
             {
@@ -59,8 +59,10 @@ namespace WebFiles.Mvc
 
             var result = storageProvider.Process(config.RootPath, request);
             foreach (var response in result.Responses)
-                if (request.PathInfo == "")
+                if (response.Href == "/")
                     response.Href = Request.Url.LocalPath;
+                else if (request.PathInfo == "/")
+                    response.Href = Request.Url.LocalPath.TrimEnd('/') + response.Href;
                 else
                     response.Href = Request.Url.LocalPath.Replace(request.PathInfo, response.Href);
 

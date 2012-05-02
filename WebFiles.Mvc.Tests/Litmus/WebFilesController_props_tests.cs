@@ -146,20 +146,21 @@ namespace WebFiles.Mvc.Tests.Litmus
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.Url).Returns(new Uri("http://localhost/web/files/litmus"));
 
-            var propFind = new PropfindRequest { PathInfo = "" };
+            var propFind = new PropfindRequest { PathInfo = "/" };
             provider.Setup(p => p.JoinPath(It.IsAny<string>(), It.IsAny<string>())).Returns(It.IsAny<string>());
             provider.Setup(p => p.CheckExists(It.IsAny<string>())).Returns(true);
 
             var multiStatusResult = new MultiStatusResult();
-            multiStatusResult.Responses.Add(new Response { Href = "" });
+            multiStatusResult.Responses.AddRange(new[] { new Response { Href = "/" }, new Response { Href = "/newFile" }});
             provider.Setup(p => p.Process(It.IsAny<string>(), propFind)).Returns(multiStatusResult);
 
             var result = controller.Propfind(propFind) as MultiStatusResult;
 
             Assert.That(result, Is.SameAs(multiStatusResult));
-            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            Assert.That(result.Responses.Count, Is.EqualTo(2));
 
             Assert.That(result.Responses[0].Href, Is.EqualTo("/web/files/litmus"));
+            Assert.That(result.Responses[1].Href, Is.EqualTo("/web/files/litmus/newFile"));
         }
     }
 }

@@ -11,6 +11,7 @@ using System.Xml.Linq;
 namespace WebFiles.Mvc.Tests
 {
     [TestFixture]
+    [Category("filesystem")]
     public class FileSystemProviderTests
     {
         FileSystemProvider fileSystem = new FileSystemProvider();
@@ -268,7 +269,7 @@ namespace WebFiles.Mvc.Tests
             Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
 
-        [Test, Ignore]
+        [Test]
         public void should_not_return_content_length_of_directory()
         {
             var tempDir = Path.GetTempPath();
@@ -324,7 +325,7 @@ namespace WebFiles.Mvc.Tests
             Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
 
-        [Test, Ignore]
+        [Test]
         public void should_return_unhandled_dav_properties_as_not_found()
         {
             var tempPath = AddPath(Path.GetTempFileName());
@@ -345,7 +346,7 @@ namespace WebFiles.Mvc.Tests
             Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(Util.DavNamespace));
         }
 
-        [Test, Ignore]
+        [Test]
         public void should_return_unhandled_properties_as_not_found()
         {
             var tempPath = AddPath(Path.GetTempFileName());
@@ -366,6 +367,113 @@ namespace WebFiles.Mvc.Tests
             var displayNameProperty = response.NotFound.Properties[0];
             Assert.That(displayNameProperty.Name.LocalName, Is.EqualTo("foo"));
             Assert.That(displayNameProperty.Name.Namespace, Is.EqualTo(nameSpace));
+        }
+
+        [Test]
+        public void should_use_depth_as_directory_recursion_level_and_only_return_information_about_the_current_level()
+        {
+            var startDirName = Path.GetRandomFileName();
+            var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), startDirName));
+
+            var startDirTempFileName = Path.GetRandomFileName();
+            var startDirTempFile = AddPath(Path.Combine(startDir, startDirTempFileName));
+            File.WriteAllText(startDirTempFile, "start dir temp file");
+
+            var subDirName = Path.GetRandomFileName();
+            var subDir = CreateDirectory(Path.Combine(startDir, subDirName));
+            Directory.CreateDirectory(subDir);
+            var subDirTempFileName = Path.GetRandomFileName();
+            var subDirTempFile = AddPath(Path.Combine(subDir, subDirTempFileName));
+            File.WriteAllText(subDirTempFile, "sub dir temp file");
+
+            var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+
+            var request = new PropfindRequest("/", "0");
+            var result = fileSystem.Process(startDir, request);
+
+            Assert.That(result.Responses.Count, Is.EqualTo(1));
+            Assert.That(result.Responses[0].Href, Is.EqualTo("/"));
+            Assert.That(result.Responses[0].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[0].Found.IsCollection, Is.True);
+        }
+
+        [Test]
+        public void should_use_depth_as_directory_recursion_level_and_only_recurse_one_level()
+        {
+            var startDirName = Path.GetRandomFileName();
+            var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), startDirName));
+
+            var startDirTempFileName = Path.GetRandomFileName();
+            var startDirTempFile = AddPath(Path.Combine(startDir, startDirTempFileName));
+            File.WriteAllText(startDirTempFile, "start dir temp file");
+
+            var subDirName = Path.GetRandomFileName();
+            var subDir = CreateDirectory(Path.Combine(startDir, subDirName));
+            Directory.CreateDirectory(subDir);
+            var subDirTempFileName = Path.GetRandomFileName();
+            var subDirTempFile = AddPath(Path.Combine(subDir, subDirTempFileName));
+            File.WriteAllText(subDirTempFile, "sub dir temp file");
+
+            var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+
+            var request = new PropfindRequest("/", "1");
+            var result = fileSystem.Process(startDir, request);
+
+            Assert.That(result.Responses.Count, Is.EqualTo(3));
+            Assert.That(result.Responses[0].Href, Is.EqualTo("/"));
+            Assert.That(result.Responses[0].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[0].Found.IsCollection, Is.True);
+
+            Assert.That(result.Responses[1].Href, Is.EqualTo("/" + startDirTempFileName));
+            Assert.That(result.Responses[1].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[1].Found.IsCollection, Is.False);
+            Assert.That(result.Responses[1].Found.ContentLength, Is.EqualTo(19));
+
+            Assert.That(result.Responses[2].Href, Is.EqualTo("/" + subDirName + "/"));
+            Assert.That(result.Responses[2].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[2].Found.IsCollection, Is.True);
+        }
+
+        [Test]
+        public void should_use_depth_as_directory_recursion_level_recurse_two_levels()
+        {
+            var startDirName = Path.GetRandomFileName();
+            var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), startDirName));
+
+            var startDirTempFileName = Path.GetRandomFileName();
+            var startDirTempFile = AddPath(Path.Combine(startDir, startDirTempFileName)); 
+            File.WriteAllText(startDirTempFile, "start dir temp file");
+
+            var subDirName = Path.GetRandomFileName();
+            var subDir = CreateDirectory(Path.Combine(startDir, subDirName));
+            Directory.CreateDirectory(subDir);
+            var subDirTempFileName = Path.GetRandomFileName();
+            var subDirTempFile = AddPath(Path.Combine(subDir, subDirTempFileName)); 
+            File.WriteAllText(subDirTempFile, "sub dir temp file");
+
+            var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+
+            var request = new PropfindRequest("/", "2");
+            var result = fileSystem.Process(startDir, request);
+
+            Assert.That(result.Responses.Count, Is.EqualTo(4));
+            Assert.That(result.Responses[0].Href, Is.EqualTo("/"));
+            Assert.That(result.Responses[0].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[0].Found.IsCollection, Is.True);
+
+            Assert.That(result.Responses[1].Href, Is.EqualTo("/" + startDirTempFileName));
+            Assert.That(result.Responses[1].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[1].Found.IsCollection, Is.False);
+            Assert.That(result.Responses[1].Found.ContentLength, Is.EqualTo(19));
+
+            Assert.That(result.Responses[2].Href, Is.EqualTo("/" + subDirName + "/"));
+            Assert.That(result.Responses[2].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[2].Found.IsCollection, Is.True);
+
+            Assert.That(result.Responses[3].Href, Is.EqualTo("/" + subDirName + "/" + subDirTempFileName));
+            Assert.That(result.Responses[3].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[3].Found.IsCollection, Is.False);
+            Assert.That(result.Responses[3].Found.ContentLength, Is.EqualTo(17));
         }
     }
 }

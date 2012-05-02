@@ -14,7 +14,6 @@ namespace WebFiles.Mvc.ActionResults
             return new XDocument();
         }
 
-
         public override void ExecuteResult(ControllerContext context)
         {
             var response = context.HttpContext.Response;

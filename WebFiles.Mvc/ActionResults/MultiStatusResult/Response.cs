@@ -29,8 +29,8 @@ namespace WebFiles.Mvc.ActionResults
             if (Found.Properties.Count > 0)
                 responseElement.Add(Found.ToXElement());
 
-            if (NotFound.Properties.Count > 0)
-                responseElement.Add(NotFound.ToXElement());
+            //if (NotFound.Properties.Count > 0)
+            //    responseElement.Add(NotFound.ToXElement());
 
             return responseElement;
         }
