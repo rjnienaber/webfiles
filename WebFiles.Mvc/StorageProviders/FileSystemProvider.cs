@@ -16,6 +16,13 @@ namespace WebFiles.Mvc.Providers
                                 additionalPath.Replace("/", "\\").Trim('\\'));
         }
 
+        string JoinRelativePath(string basePath, string additionalPath)
+        {
+            if (basePath == "/")
+                return string.Concat(basePath, additionalPath);
+            return string.Concat("/", basePath.Trim('/'), "/", additionalPath.Trim('/'));
+        }
+
         public virtual bool CheckExists(string fullPath)
         {
             return Directory.Exists(fullPath) || File.Exists(fullPath);  
@@ -96,12 +103,14 @@ namespace WebFiles.Mvc.Providers
         {
             var multiStatus = new MultiStatusResult();
 
-            Process(request, rootPath, request.PathInfo, request.Depth, multiStatus);
+            var relativePath = request.PathInfo.StartsWith("/") ? request.PathInfo : "/" + request.PathInfo;
+
+            Process(request, rootPath, relativePath, request.Depth, multiStatus);
 
             return multiStatus;
         }
 
-        void Process(PropfindRequest request, string rootPath, string relativePath, int depth, MultiStatusResult multiStatus)
+        void Process(PropfindRequest request, string rootPath, string relativePath, int currentDepth, MultiStatusResult multiStatus)
         {
             var fullPath = JoinPath(rootPath, relativePath);
 
@@ -139,7 +148,7 @@ namespace WebFiles.Mvc.Providers
             if (response.NotFound.Properties.Any())
                 response.NotFound.Status = "HTTP/1.1 404 Not Found";
 
-            if (depth == 0)
+            if (currentDepth == 0)
                 return;
 
             if (isACollection)
@@ -147,12 +156,12 @@ namespace WebFiles.Mvc.Providers
                 //process files
                 var files = Directory.GetFiles(fullPath);
                 foreach (var file in files)
-                    Process(request, rootPath, relativePath + '/' + Path.GetFileName(file), 0, multiStatus);
+                    Process(request, rootPath, JoinRelativePath(relativePath, Path.GetFileName(file)), 0, multiStatus);
 
                 //process directories
                 var dirs = Directory.GetDirectories(fullPath);
                 foreach (var dir in dirs)
-                    Process(request, rootPath, relativePath + '/' + Path.GetFileName(dir) + "/", depth - 1, multiStatus);
+                    Process(request, rootPath, JoinRelativePath(relativePath, Path.GetFileName(dir)) + "/", currentDepth - 1, multiStatus);
 
             }
         }

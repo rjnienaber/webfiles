@@ -231,7 +231,7 @@ namespace WebFiles.Mvc.Tests
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
-            Assert.That(response.Href, Is.EqualTo(newDir));
+            Assert.That(response.Href, Is.EqualTo("/" + newDir));
             Assert.That(response.Found.IsCollection, Is.True);
             Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
@@ -471,6 +471,48 @@ namespace WebFiles.Mvc.Tests
             Assert.That(result.Responses[2].Found.IsCollection, Is.True);
 
             Assert.That(result.Responses[3].Href, Is.EqualTo("/" + subDirName + "/" + subDirTempFileName));
+            Assert.That(result.Responses[3].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[3].Found.IsCollection, Is.False);
+            Assert.That(result.Responses[3].Found.ContentLength, Is.EqualTo(17));
+        }
+
+        [Test]
+        public void should_correctly_parse_subdirectory()
+        {
+            var startDirName = Path.GetRandomFileName();
+            var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), startDirName));
+
+            var startDirTempFileName = Path.GetRandomFileName();
+            var startDirTempFile = AddPath(Path.Combine(startDir, startDirTempFileName)); 
+            File.WriteAllText(startDirTempFile, "start dir temp file");
+
+            var subDirName = Path.GetRandomFileName();
+            var subDir = CreateDirectory(Path.Combine(startDir, subDirName));
+            Directory.CreateDirectory(subDir);
+            var subDirTempFileName = Path.GetRandomFileName();
+            var subDirTempFile = AddPath(Path.Combine(subDir, subDirTempFileName)); 
+            File.WriteAllText(subDirTempFile, "sub dir temp file");
+
+            var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+
+            var request = new PropfindRequest(startDirName, "2");
+            var result = fileSystem.Process(Path.GetTempPath(), request);
+
+            Assert.That(result.Responses.Count, Is.EqualTo(4));
+            Assert.That(result.Responses[0].Href, Is.EqualTo("/" + startDirName));
+            Assert.That(result.Responses[0].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[0].Found.IsCollection, Is.True);
+
+            Assert.That(result.Responses[1].Href, Is.EqualTo("/" + startDirName + "/" + startDirTempFileName));
+            Assert.That(result.Responses[1].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[1].Found.IsCollection, Is.False);
+            Assert.That(result.Responses[1].Found.ContentLength, Is.EqualTo(19));
+
+            Assert.That(result.Responses[2].Href, Is.EqualTo("/" + startDirName + "/" + subDirName + "/"));
+            Assert.That(result.Responses[2].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
+            Assert.That(result.Responses[2].Found.IsCollection, Is.True);
+
+            Assert.That(result.Responses[3].Href, Is.EqualTo("/" + startDirName + "/" + subDirName + "/" + subDirTempFileName));
             Assert.That(result.Responses[3].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
             Assert.That(result.Responses[3].Found.IsCollection, Is.False);
             Assert.That(result.Responses[3].Found.ContentLength, Is.EqualTo(17));
