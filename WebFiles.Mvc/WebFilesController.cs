@@ -110,7 +110,8 @@ namespace WebFiles.Mvc
         [ActionName(ActionName)]
         public virtual NoContentResult Move(string pathInfo)
         {
-            var relativeDestinationUrl = Request.Headers["Destination"].Replace(Request.Url.AbsoluteUri.Replace(pathInfo, ""), "");
+            var unencodedUri = HttpUtility.UrlDecode(Request.Url.AbsoluteUri);
+            var relativeDestinationUrl = Request.Headers["Destination"].Replace(unencodedUri.Replace(pathInfo, ""), "");
             var destination = CheckAncestorPaths(relativeDestinationUrl);
 
             var destinationExists = storageProvider.CheckExists(destination);

@@ -16,6 +16,7 @@ using System.Web.Routing;
 namespace WebFiles.Mvc.Tests.Litmus
 {
     [TestFixture]
+    [Category("copymove")]
     public class WebFilesController_basic_copymove_tests
     {
         Configuration config = null;
@@ -287,6 +288,29 @@ namespace WebFiles.Mvc.Tests.Litmus
             request.Setup(r => r.Headers).Returns(headers);
             request.Setup(r => r.Url).Returns(new Uri("http://localhost/webdav/files/litmus/newFile.txt"));
             var result = controller.Move("litmus/newFile.txt") as NoContentResult;
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.ContentType, Is.EqualTo("text/html"));
+            Assert.That(result.Content, Is.EqualTo(""));
+            Assert.That(result.HttpStatusCode, Is.EqualTo(201));
+
+        }
+
+        [Test]
+        public void MOVE_should_copy_with_spaces()
+        {
+            provider.Setup(p => p.JoinPath("D:\\stuff", "New Folder")).Returns("D:\\stuff\\New Folder");
+
+            var headers = new NameValueCollection { { "Destination", "http://localhost/webdav/files/pics" } };
+            //provider.Setup(p => p.CheckExists("D:\\stuff\\New Folder")).Returns(true);
+            provider.Setup(p => p.JoinPath("D:\\stuff", "pics")).Returns("D:\\stuff\\pics");
+
+            provider.Setup(p => p.Move("D:\\stuff\\New Folder", "D:\\stuff\\pics"));
+
+            context.Setup(c => c.Request).Returns(request.Object);
+            request.Setup(r => r.Headers).Returns(headers);
+            request.Setup(r => r.Url).Returns(new Uri("http://localhost/webdav/files/New%20Folder"));
+            var result = controller.Move("New Folder") as NoContentResult;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.ContentType, Is.EqualTo("text/html"));
