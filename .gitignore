@@ -12,3 +12,5 @@ license.txt
 
 # mstest test results
 TestResults
+*.log
+packages/NLog*
