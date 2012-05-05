@@ -14,10 +14,8 @@ namespace WebFiles.Web.Tests.Controllers
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
 
-        public WebDavController()
+        public WebDavController() : base(new FileSystemProvider("D:\\stuff"))
         {
-            this.config = new Configuration { RootPath = "D:\\stuff" };
-            this.storageProvider = new FileSystemProvider();
         }
 
         protected override void OnActionExecuting(ActionExecutingContext filterContext)
@@ -26,13 +24,27 @@ namespace WebFiles.Web.Tests.Controllers
             base.OnActionExecuting(filterContext);
         }
 
+        protected override void OnException(ExceptionContext filterContext)
+        {
+            base.OnException(filterContext);
+            var pathInfo = filterContext.RouteData.Values["pathInfo"];
+            LogStopwatch(pathInfo, true);
+            logger.Error("Exception: {0}", filterContext.Exception.ToString());
+        }
+
         protected override void OnActionExecuted(ActionExecutedContext filterContext)
         {
             base.OnActionExecuted(filterContext);
+            var pathInfo = filterContext.RouteData.Values["pathInfo"];
+            LogStopwatch(pathInfo, false);
+        }
+
+        void LogStopwatch(object pathInfo, bool error)
+        {
             var stopwatch = HttpContext.Items["Time_Action"] as Stopwatch;
             stopwatch.Stop();
-            var pathInfo = filterContext.RouteData.Values["pathInfo"];
-            logger.Debug("Method: {0}, PathInfo: {1}, Time: {2}(ms)", Request.HttpMethod, pathInfo, stopwatch.ElapsedMilliseconds);
+            var errorMessage = error ? "*ERROR*" : "";
+            logger.Debug("Method: {0}, PathInfo: {1}, Time: {2}(ms) {3}", Request.HttpMethod, pathInfo, stopwatch.ElapsedMilliseconds, errorMessage);
         }
 
     }
