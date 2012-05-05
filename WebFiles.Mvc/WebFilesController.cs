@@ -135,7 +135,8 @@ namespace WebFiles.Mvc
         public virtual ActionResult Get(string pathInfo)
         {
             var fullPath = storageProvider.JoinPath(config.RootPath, pathInfo);
-            return File(fullPath, "application/octet-stream");
+            var stream = storageProvider.Read(fullPath);
+            return File(stream, "application/octet-stream");
         }
 
         [HttpPut]

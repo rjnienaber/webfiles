@@ -94,7 +94,31 @@ namespace WebFiles.Mvc.Tests
 
             var text = File.ReadAllText(fileName);
             Assert.That(text, Is.EqualTo("save this resource"));
-       }
+        }
+
+        [Test]
+        public void Read_file_stream_from_path()
+        {
+            var fullPath = AddPath(Path.Combine(Path.GetTempPath(), "#" + Path.GetRandomFileName()));
+            File.WriteAllBytes(fullPath, Encoding.UTF8.GetBytes("read this resource"));
+
+            using (var reader = new StreamReader(fileSystem.Read(fullPath)))
+                Assert.That(reader.ReadToEnd(), Is.EqualTo("read this resource"));
+        }
+
+        [Test, Ignore]
+        public void Read_file_stream_from_url_encoded_path()
+        {
+            var randomName = Path.GetRandomFileName();
+            var tempDirName = Path.GetRandomFileName();
+            var actualTempDir = CreateDirectory(Path.Combine(Path.GetTempPath(), "%23" + tempDirName));
+            var fullPath = Path.Combine(actualTempDir, "%23" + randomName); 
+            File.WriteAllBytes(fullPath, Encoding.UTF8.GetBytes("read this resource"));
+
+            var encodingFilePath = Path.Combine(Path.Combine(Path.GetTempPath(), "#" + tempDirName), "#" + randomName);
+            using (var reader = new StreamReader(fileSystem.Read(encodingFilePath)))
+                Assert.That(reader.ReadToEnd(), Is.EqualTo("read this resource"));
+        }
 
         [Test]
         public void Copy_resource_to_a_new_destination()

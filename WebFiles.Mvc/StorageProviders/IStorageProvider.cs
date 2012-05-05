@@ -12,6 +12,7 @@ namespace WebFiles.Mvc.Providers
 
         void CreateCollection(string fullPath);
         void Delete(string fullPath);
+        Stream Read(string fullPath);
         void Save(string fullPath, Stream input);
         void Copy(string source, string destination);
         void Move(string source, string destination);

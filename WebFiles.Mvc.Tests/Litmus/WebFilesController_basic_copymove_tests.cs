@@ -182,10 +182,12 @@ namespace WebFiles.Mvc.Tests.Litmus
         public void GET_should_retrieve_an_existing_resource()
         {
             provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/newFile.txt")).Returns("D:\\stuff\\litmus\\newFile.txt");
-            var result = controller.Get("litmus/newFile.txt") as FilePathResult;
+            var stream = new MemoryStream();
+            provider.Setup(p => p.Read("D:\\stuff\\litmus\\newFile.txt")).Returns(stream);
+            var result = controller.Get("litmus/newFile.txt") as FileStreamResult;
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.FileName, Is.EqualTo("D:\\stuff\\litmus\\newFile.txt"));
+            Assert.That(result.FileStream, Is.SameAs(stream));
             Assert.That(result.ContentType, Is.EqualTo("application/octet-stream"));
         }
 

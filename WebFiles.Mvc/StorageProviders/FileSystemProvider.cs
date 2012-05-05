@@ -5,6 +5,7 @@ using System.Text;
 using System.IO;
 using WebFiles.Mvc.Requests;
 using WebFiles.Mvc.ActionResults;
+using System.Web;
 
 namespace WebFiles.Mvc.Providers
 {
@@ -162,8 +163,16 @@ namespace WebFiles.Mvc.Providers
                 var dirs = Directory.GetDirectories(fullPath);
                 foreach (var dir in dirs)
                     Process(request, rootPath, JoinRelativePath(relativePath, Path.GetFileName(dir)) + "/", currentDepth - 1, multiStatus);
-
             }
+        }
+
+
+        public Stream Read(string fullPath)
+        {
+            if (File.Exists(fullPath))
+                return File.OpenRead(fullPath);
+
+            throw new Exception("File path not found");
         }
     }
 }
