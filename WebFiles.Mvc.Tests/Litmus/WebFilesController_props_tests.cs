@@ -31,10 +31,10 @@ namespace WebFiles.Mvc.Tests.Litmus
         [SetUp]
         public void Setup()
         {
-            config = new Configuration { RootPath = "D:\\stuff" };
+            config = new Configuration { RootPath = "/" };
             factory = new MockRepository(MockBehavior.Default);
             provider = factory.Create<IStorageProvider>();
-            controller = new WebFilesController(config, provider.Object);
+            controller = new WebFilesController(provider.Object);
             context = factory.Create<HttpContextBase>();
             request = factory.Create<HttpRequestBase>();
             controller.ControllerContext = new ControllerContext(context.Object, new RouteData(), controller);
@@ -72,12 +72,11 @@ namespace WebFiles.Mvc.Tests.Litmus
             request.Setup(r => r.Headers).Returns(new NameValueCollection());
             context.Setup(c => c.Request).Returns(request.Object);
 
-            provider.Setup(p => p.JoinPath(It.IsAny<string>(), It.IsAny<string>())).Returns(It.IsAny<string>());
             provider.Setup(p => p.CheckExists(It.IsAny<string>())).Returns(true);
             var multiStatusResult = new MultiStatusResult();
 
             //empty propfind should return all dav properties
-            provider.Setup(p => p.Process(It.IsAny<string>(), It.IsAny<PropfindRequest>())).Callback<string, PropfindRequest>((s, r) =>
+            provider.Setup(p => p.Process(It.IsAny<PropfindRequest>())).Callback<PropfindRequest>(r =>
             {
                 Assert.That(r.HasGetContentLength, Is.True);
                 Assert.That(r.HasGetLastModified, Is.True);
@@ -101,15 +100,14 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void PROPFIND_should_return_status_for_directory()
         {
-            var request = new PropfindRequest { PathInfo = "litmus/" };
+            var request = new PropfindRequest { PathInfo = "/litmus/" };
             request.DavProperties.AddRange(new[] { "getcontentlength" });
             XNamespace ns = "urn:someNamespace";
             request.NonDavProperties.Add(new XElement(ns + "test"));
 
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/")).Returns(true);
             var multiStatusResult = new MultiStatusResult();
-            provider.Setup(p => p.Process("D:\\stuff", request)).Returns(multiStatusResult);
+            provider.Setup(p => p.Process(request)).Returns(multiStatusResult);
 
             var result = controller.Propfind(request) as MultiStatusResult;
 
@@ -123,13 +121,12 @@ namespace WebFiles.Mvc.Tests.Litmus
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.Url).Returns(new Uri("http://localhost/web/files/litmus/"));
 
-            var propFind = new PropfindRequest("litmus/", null);
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
+            var propFind = new PropfindRequest("/litmus/", null);
+            provider.Setup(p => p.CheckExists("/litmus/")).Returns(true);
 
             var multiStatusResult = new MultiStatusResult();
             multiStatusResult.Responses.AddRange(new [] { new Response { Href = "litmus/test" }, new Response { Href = "litmus/test2" }});
-            provider.Setup(p => p.Process("D:\\stuff", propFind)).Returns(multiStatusResult);
+            provider.Setup(p => p.Process(propFind)).Returns(multiStatusResult);
 
             var result = controller.Propfind(propFind) as MultiStatusResult;
 
@@ -147,12 +144,11 @@ namespace WebFiles.Mvc.Tests.Litmus
             request.Setup(r => r.Url).Returns(new Uri("http://localhost/web/files/litmus"));
 
             var propFind = new PropfindRequest { PathInfo = "/" };
-            provider.Setup(p => p.JoinPath(It.IsAny<string>(), It.IsAny<string>())).Returns(It.IsAny<string>());
             provider.Setup(p => p.CheckExists(It.IsAny<string>())).Returns(true);
 
             var multiStatusResult = new MultiStatusResult();
             multiStatusResult.Responses.AddRange(new[] { new Response { Href = "/" }, new Response { Href = "/newFile" }});
-            provider.Setup(p => p.Process(It.IsAny<string>(), propFind)).Returns(multiStatusResult);
+            provider.Setup(p => p.Process(propFind)).Returns(multiStatusResult);
 
             var result = controller.Propfind(propFind) as MultiStatusResult;
 

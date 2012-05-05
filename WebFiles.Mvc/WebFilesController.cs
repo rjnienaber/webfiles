@@ -19,31 +19,32 @@ namespace WebFiles.Mvc
     public class WebFilesController : Controller
     {
         public const string ActionName = "All";
-        protected IStorageProvider storageProvider = null;
-        protected Configuration config = null;
+        protected readonly IStorageProvider storageProvider;
+        protected readonly Encoding requestEncoding;
 
         public WebFilesController() : this(null, null) { }
-        public WebFilesController(Configuration config, IStorageProvider storageProvider)
+        public WebFilesController(IStorageProvider storageProvider) : this(Encoding.UTF8, storageProvider) { }
+        public WebFilesController(Encoding requestEncoding, IStorageProvider storageProvider)
         {
             this.storageProvider = storageProvider;
-            this.config = config;
+            this.requestEncoding = requestEncoding; 
         }
 
         [AcceptVerbs("PROPFIND")]
         [ActionName(ActionName)]
         public ActionResult Propfind(string pathInfo)
         {
-            pathInfo = pathInfo ?? "/";
+            pathInfo = EnsureStartSlash(pathInfo);
             var depth = Request.Headers["Depth"];
             try
             {
                 if (Request.ContentLength > 0)
-                    using (var streamReader = new StreamReader(Request.InputStream, config.RequestEncoding))
-                        return Propfind(new PropfindRequest(pathInfo, depth, XDocument.Load(streamReader)));
-                else
                 {
-                    return Propfind(new PropfindRequest(pathInfo, depth));
+                    using (var streamReader = new StreamReader(Request.InputStream, requestEncoding))
+                        return Propfind(new PropfindRequest(pathInfo, depth, XDocument.Load(streamReader)));
                 }
+                else
+                    return Propfind(new PropfindRequest(pathInfo, depth));
             }
             catch (XmlException e)
             {
@@ -53,18 +54,17 @@ namespace WebFiles.Mvc
 
         public virtual MultiStatusResult Propfind(PropfindRequest request)
         {
-            var fullPath = storageProvider.JoinPath(config.RootPath, request.PathInfo);
-            if (!storageProvider.CheckExists(fullPath))
+            if (!storageProvider.CheckExists(request.PathInfo))
                 throw new HttpException(404, "path doesn't exist");
 
-            var result = storageProvider.Process(config.RootPath, request);
+            var result = storageProvider.Process(request);
             foreach (var response in result.Responses)
                 if (response.Href == "/")
                     response.Href = Request.Url.LocalPath;
                 else if (request.PathInfo == "/")
-                    response.Href = Request.Url.LocalPath.TrimEnd('/') + response.Href;
+                    response.Href = Request.Url.LocalPath.TrimEnd('/') + EnsureStartSlash(response.Href);
                 else
-                    response.Href = Request.Url.LocalPath.Replace(request.PathInfo, response.Href);
+                    response.Href = Request.Url.LocalPath.Replace(request.PathInfo, EnsureStartSlash(response.Href));
 
             return result;
         }
@@ -85,57 +85,56 @@ namespace WebFiles.Mvc
 
         [AcceptVerbs("COPY")]
         [ActionName(ActionName)]
-        public virtual ActionResult Copy(string pathInfo)
+        public ActionResult Copy(string pathInfo)
         {
-            var relativeDestinationUrl = Request.Headers["Destination"].Replace(Request.Url.AbsoluteUri.Replace(pathInfo, ""), "");
-            var destination = CheckAncestorPaths(relativeDestinationUrl);
+            return Copy(EnsureStartSlash(pathInfo), GetDestination(pathInfo), GetOverwrite());
+        }
 
-            var destinationExists = storageProvider.CheckExists(destination);
-
-            if (Request.Headers.AllKeys.Contains("Overwrite") &&
-                Request.Headers["Overwrite"] == "F" &&
-                destinationExists)
-                throw new HttpException(412, "path already exists");
-
-            if (destinationExists)
-                storageProvider.Delete(destination);
-
-            var source = storageProvider.JoinPath(config.RootPath, pathInfo);
-
-            storageProvider.Copy(source, destination);
+        public virtual ActionResult Copy(string relativeSource, string relativeDestination, bool mustOverwrite)
+        {
+            var destinationExists = CopyMoveOperation(relativeSource, relativeDestination, mustOverwrite, true); 
             return new NoContentResult(destinationExists ? 204 : 201);
         }
 
+        
+
         [AcceptVerbs("MOVE")]
         [ActionName(ActionName)]
-        public virtual NoContentResult Move(string pathInfo)
+        public virtual ActionResult Move(string pathInfo)
         {
-            var unencodedUri = HttpUtility.UrlDecode(Request.Url.AbsoluteUri);
-            var relativeDestinationUrl = Request.Headers["Destination"].Replace(unencodedUri.Replace(pathInfo, ""), "");
-            var destination = CheckAncestorPaths(relativeDestinationUrl);
+            return Move(EnsureStartSlash(pathInfo), GetDestination(pathInfo), GetOverwrite());
+        }
 
-            var destinationExists = storageProvider.CheckExists(destination);
+        public virtual ActionResult Move(string relativeSource, string relativeDestination, bool mustOverwrite)
+        {
+            var destinationExists = CopyMoveOperation(relativeSource, relativeDestination, mustOverwrite, false); 
+            return new NoContentResult(destinationExists ? 204 : 201);
+        }
 
-            if (Request.Headers.AllKeys.Contains("Overwrite") &&
-                Request.Headers["Overwrite"] == "F" &&
-                destinationExists)
+        bool CopyMoveOperation(string relativeSource, string relativeDestination, bool mustOverwrite, bool performCopy)
+        {
+            CheckAncestorPaths(relativeDestination);
+            var destinationExists = storageProvider.CheckExists(relativeDestination);
+
+            if (!mustOverwrite && destinationExists)
                 throw new HttpException(412, "path already exists");
 
             if (destinationExists)
-                storageProvider.Delete(destination);
+                storageProvider.Delete(relativeDestination);
 
-            var source = storageProvider.JoinPath(config.RootPath, pathInfo);
+            if (performCopy)
+                storageProvider.Copy(relativeSource, relativeDestination);
+            else
+                storageProvider.Move(relativeSource, relativeDestination);
 
-            storageProvider.Move(source, destination);
-            return new NoContentResult(destinationExists ? 204 : 201);
+            return destinationExists;
         }
 
         [HttpGet]
         [ActionName(ActionName)]
         public virtual ActionResult Get(string pathInfo)
         {
-            var fullPath = storageProvider.JoinPath(config.RootPath, pathInfo);
-            var stream = storageProvider.Read(fullPath);
+            var stream = storageProvider.Read(EnsureStartSlash(pathInfo));
             return File(stream, "application/octet-stream");
         }
 
@@ -143,8 +142,7 @@ namespace WebFiles.Mvc
         [ActionName(ActionName)]
         public virtual NoContentResult Put(string pathInfo)
         {
-            var fullPath = storageProvider.JoinPath(config.RootPath, pathInfo);
-            storageProvider.Save(fullPath, Request.InputStream);
+            storageProvider.Save(pathInfo, Request.InputStream);
             return new NoContentResult(201);
         }
 
@@ -152,11 +150,11 @@ namespace WebFiles.Mvc
         [ActionName(ActionName)]
         public virtual NoContentResult Delete(string pathInfo)
         {
-            var fullPath = storageProvider.JoinPath(config.RootPath, pathInfo);
-            if (!storageProvider.CheckExists(fullPath))
+            var relativePath = EnsureStartSlash(pathInfo);
+            if (!storageProvider.CheckExists(relativePath))
                 throw new HttpException(404, "path doesn't exist");
 
-            storageProvider.Delete(fullPath);
+            storageProvider.Delete(relativePath);
             return new NoContentResult(204);
         }
 
@@ -167,39 +165,17 @@ namespace WebFiles.Mvc
             if (Request.ContentLength != 0)
                 throw new HttpException(415, "request body not understood");
 
-            if (!storageProvider.CheckExists(config.RootPath))
+            if (!storageProvider.CheckExists("/"))
                 throw new HttpException(409, "parent path doesn't exist");
 
-            var fullPath = CheckAncestorPaths(pathInfo);
+            CheckAncestorPaths(pathInfo);
 
-            if (storageProvider.CheckExists(fullPath))
+            var destination = EnsureStartSlash(pathInfo);
+            if (storageProvider.CheckExists(destination))
                 throw new HttpException(405, "path already exists");
 
-            storageProvider.CreateCollection(fullPath);
+            storageProvider.CreateCollection(destination);
             return new NoContentResult(201);
-        }
-
-        private string CheckAncestorPaths(string pathInfo)
-        {
-            var parts = pathInfo.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-
-            //ensure ancestors exist
-            var fullPath = config.RootPath;
-            if (parts.Length > 0)
-            {
-                for (int i = 0; i < parts.Length - 1; i++)
-                {
-                    var part = parts[i];
-                    fullPath = storageProvider.JoinPath(fullPath, part);
-                    if (!storageProvider.CheckExists(fullPath))
-                    {
-                        var errorMessage = string.Format("ancestor path doesn't exist - /{0}", string.Join("/", parts, 0, i + 1));
-                        throw new HttpException(409, errorMessage);
-                    }
-                }
-            }
-
-            return storageProvider.JoinPath(fullPath, parts.Last());
         }
         
         [AcceptVerbs("OPTIONS")]
@@ -210,6 +186,44 @@ namespace WebFiles.Mvc
             result.Headers.Add("Allow", "OPTIONS, DELETE, MKCOL, PUT, GET, PROPFIND, COPY, MOVE");
             result.Headers.Add("DAV", "1, 2");
             return result;
+        }
+
+        private void CheckAncestorPaths(string pathInfo)
+        {
+            var parts = pathInfo.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+
+            //ensure ancestors exist
+            string fullPath = null;
+            if (parts.Length > 0)
+            {
+                for (int i = 0; i < parts.Length - 1; i++)
+                {
+                    var part = parts[i];
+                    fullPath = string.Concat(fullPath, "/", part);
+                    if (!storageProvider.CheckExists(fullPath))
+                    {
+                        var errorMessage = string.Format("ancestor path doesn't exist - /{0}", string.Join("/", parts, 0, i + 1));
+                        throw new HttpException(409, errorMessage);
+                    }
+                }
+            }
+        }
+
+        string EnsureStartSlash(string relativePath)
+        {
+            return "/" + (relativePath ?? "").TrimStart('/');
+        }
+
+        string GetDestination(string pathInfo)
+        {
+            var unencodedUri = HttpUtility.UrlDecode(Request.Url.AbsoluteUri);
+            var relativeDestinationUrl = Request.Headers["Destination"].Replace(unencodedUri.Replace(pathInfo, ""), "");
+            return EnsureStartSlash(relativeDestinationUrl);
+        }
+
+        bool GetOverwrite()
+        {
+            return !(Request.Headers.AllKeys.Contains("Overwrite") && Request.Headers["Overwrite"] == "F");
         }
     }
 }

@@ -11,10 +11,19 @@ namespace WebFiles.Mvc.Providers
 {
     public class FileSystemProvider : IStorageProvider
     {
-        public virtual string JoinPath(string basePath, string additionalPath)
+        internal string basePath;
+        internal FileSystemProvider() { }
+        public FileSystemProvider(string basePath)
         {
-            return Path.Combine(basePath.Replace("/", "\\").TrimEnd('\\'), 
-                                additionalPath.Replace("/", "\\").Trim('\\'));
+            if (basePath == null)
+                throw new ArgumentNullException("basePath");
+
+            this.basePath = basePath.Replace("/", "\\").TrimEnd('\\');
+        }
+
+        internal string GetFullPath(string additionalPath)
+        {
+            return Path.Combine(basePath, additionalPath.Replace("/", "\\").Trim('\\'));
         }
 
         string JoinRelativePath(string basePath, string additionalPath)
@@ -24,13 +33,15 @@ namespace WebFiles.Mvc.Providers
             return string.Concat("/", basePath.Trim('/'), "/", additionalPath.Trim('/'));
         }
 
-        public virtual bool CheckExists(string fullPath)
+        public virtual bool CheckExists(string relativePath)
         {
+            var fullPath = GetFullPath(relativePath);
             return Directory.Exists(fullPath) || File.Exists(fullPath);  
         }
 
-        public virtual void CreateCollection(string fullPath)
+        public virtual void CreateCollection(string relativePath)
         {
+            var fullPath = GetFullPath(relativePath);
             try
             {
                 Directory.CreateDirectory(fullPath);
@@ -41,8 +52,9 @@ namespace WebFiles.Mvc.Providers
             }
         }
 
-        public virtual void Delete(string fullPath)
+        public virtual void Delete(string relativePath)
         {
+            var fullPath = GetFullPath(relativePath);
             if (!CheckExists(fullPath)) return;
 
             if (IsACollection(fullPath))
@@ -51,8 +63,9 @@ namespace WebFiles.Mvc.Providers
                 File.Delete(fullPath);
         }
 
-        public virtual void Save(string fullPath, Stream input)
+        public virtual void Save(string relativePath, Stream input)
         {
+            var fullPath = GetFullPath(relativePath);
             using (var file = File.OpenWrite(fullPath))
             {
                 byte[] buffer = new byte[16 * 1024];
@@ -62,8 +75,11 @@ namespace WebFiles.Mvc.Providers
             }
         }
 
-        public void Copy(string source, string destination)
+        public void Copy(string relativeSourcePath, string relativeDestinationPath)
         {
+            var source = GetFullPath(relativeSourcePath);
+            var destination = GetFullPath(relativeDestinationPath);
+
             if (!IsACollection(source) && !IsACollection(destination))
             {
                 File.Copy(source, destination, true);
@@ -83,13 +99,16 @@ namespace WebFiles.Mvc.Providers
                 File.Copy(file, Path.Combine(destination, Path.GetFileName(file)), true);
         }
 
-        public bool IsACollection(string fullPath)
+        internal bool IsACollection(string fullPath)
         {
             return Directory.Exists(fullPath);
         }
 
-        public void Move(string source, string destination)
+        public void Move(string relativeSourcePath, string relativeDestinationPath)
         {
+            var source = GetFullPath(relativeSourcePath);
+            var destination = GetFullPath(relativeDestinationPath);
+
             if (!IsACollection(source))
             {
                 File.Move(source, destination);
@@ -100,20 +119,20 @@ namespace WebFiles.Mvc.Providers
         }
 
 
-        public MultiStatusResult Process(string rootPath, PropfindRequest request)
+        public MultiStatusResult Process(PropfindRequest request)
         {
             var multiStatus = new MultiStatusResult();
 
             var relativePath = request.PathInfo.StartsWith("/") ? request.PathInfo : "/" + request.PathInfo;
 
-            Process(request, rootPath, relativePath, request.Depth, multiStatus);
+            Process(request, relativePath, request.Depth, multiStatus);
 
             return multiStatus;
         }
 
-        void Process(PropfindRequest request, string rootPath, string relativePath, int currentDepth, MultiStatusResult multiStatus)
+        void Process(PropfindRequest request, string relativePath, int currentDepth, MultiStatusResult multiStatus)
         {
-            var fullPath = JoinPath(rootPath, relativePath);
+            var fullPath = GetFullPath(relativePath);
 
             var response = new Response { Href = relativePath };
             multiStatus.Responses.Add(response);
@@ -157,18 +176,18 @@ namespace WebFiles.Mvc.Providers
                 //process files
                 var files = Directory.GetFiles(fullPath);
                 foreach (var file in files)
-                    Process(request, rootPath, JoinRelativePath(relativePath, Path.GetFileName(file)), 0, multiStatus);
+                    Process(request, JoinRelativePath(relativePath, Path.GetFileName(file)), 0, multiStatus);
 
                 //process directories
                 var dirs = Directory.GetDirectories(fullPath);
                 foreach (var dir in dirs)
-                    Process(request, rootPath, JoinRelativePath(relativePath, Path.GetFileName(dir)) + "/", currentDepth - 1, multiStatus);
+                    Process(request, JoinRelativePath(relativePath, Path.GetFileName(dir)) + "/", currentDepth - 1, multiStatus);
             }
         }
 
-
-        public Stream Read(string fullPath)
+        public Stream Read(string relativePath)
         {
+            var fullPath = GetFullPath(relativePath);
             if (File.Exists(fullPath))
                 return File.OpenRead(fullPath);
 

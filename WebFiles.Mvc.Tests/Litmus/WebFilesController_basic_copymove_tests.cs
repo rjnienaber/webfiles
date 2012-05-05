@@ -29,10 +29,10 @@ namespace WebFiles.Mvc.Tests.Litmus
         [SetUp]
         public void Setup()
         {
-            config = new Configuration { RootPath = "D:\\stuff" };
+            config = new Configuration { RootPath = "/" };
             factory = new MockRepository(MockBehavior.Default);
             provider = factory.Create<IStorageProvider>();
-            controller = new WebFilesController(config, provider.Object);
+            controller = new WebFilesController(provider.Object);
             context = factory.Create<HttpContextBase>();
             request = factory.Create<HttpRequestBase>();
             controller.ControllerContext = new ControllerContext(context.Object, new RouteData(), controller);
@@ -47,9 +47,8 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void MKCOL_if_resource_exists_command_should_fail()
         {
-            provider.Setup(p => p.CheckExists("D:\\stuff")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
+            provider.Setup(p => p.CheckExists("/")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/")).Returns(true);
 
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.ContentLength).Returns(0);
@@ -63,7 +62,7 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void MKCOL_ensure_parent_path_exists()
         {
-            provider.Setup(p => p.CheckExists("D:\\stuff")).Returns(false);
+            provider.Setup(p => p.CheckExists("/")).Returns(false);
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.ContentLength).Returns(0);
 
@@ -76,13 +75,10 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void MKCOL_ensure_ancestors_exist()
         {
-            provider.Setup(p => p.CheckExists("D:\\stuff")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff\\litmus", "another")).Returns("D:\\stuff\\litmus\\another");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus\\another")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff\\litmus\\another", "dir")).Returns("D:\\stuff\\litmus\\another\\dir");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus\\another\\dir")).Returns(false);
+            provider.Setup(p => p.CheckExists("/")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/another")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/another/dir")).Returns(false);
 
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.ContentLength).Returns(0);
@@ -96,10 +92,9 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void MKCOL_create_collection_and_return_201_status()
         {
-            provider.Setup(p => p.CheckExists("D:\\stuff")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(false);
-            provider.Setup(p => p.CreateCollection("D:\\stuff\\litmus"));
+            provider.Setup(p => p.CheckExists("/")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/")).Returns(false);
+            provider.Setup(p => p.CreateCollection("/litmus/"));
 
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.ContentLength).Returns(0);
@@ -126,9 +121,8 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void DELETE_a_deletion_should_remove_resource()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
-            provider.Setup(p => p.Delete("D:\\stuff\\litmus"));
+            provider.Setup(p => p.CheckExists("/litmus/")).Returns(true);
+            provider.Setup(p => p.Delete("/litmus/"));
 
             var result = controller.Delete("litmus/") as NoContentResult;
             Assert.That(result, Is.Not.Null);
@@ -140,8 +134,7 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void DELETE_a_deletion_on_non_existent_resource_should_fail()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(false);
+            provider.Setup(p => p.CheckExists("/litmus/")).Returns(false);
 
             var exception = Assert.Throws<HttpException>(() => controller.Delete("litmus/"));
 
@@ -165,11 +158,10 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void PUT_should_save_request_stream_to_provider()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "/litmus/newFile.txt")).Returns("D:\\stuff\\litmus\\newFile.txt");
             var ms = new MemoryStream();
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.InputStream).Returns(ms);
-            provider.Setup(p => p.Save("D:\\stuff\\litmus\\newFile.txt", ms));
+            provider.Setup(p => p.Save("/litmus/newFile.txt", ms));
 
             var result = controller.Put("/litmus/newFile.txt") as NoContentResult;
             Assert.That(result, Is.Not.Null);
@@ -181,9 +173,8 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void GET_should_retrieve_an_existing_resource()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/newFile.txt")).Returns("D:\\stuff\\litmus\\newFile.txt");
             var stream = new MemoryStream();
-            provider.Setup(p => p.Read("D:\\stuff\\litmus\\newFile.txt")).Returns(stream);
+            provider.Setup(p => p.Read("/litmus/newFile.txt")).Returns(stream);
             var result = controller.Get("litmus/newFile.txt") as FileStreamResult;
 
             Assert.That(result, Is.Not.Null);
@@ -194,11 +185,8 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void COPY_should_duplicate_a_resource()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/newFile.txt")).Returns("D:\\stuff\\litmus\\newFile.txt");
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff\\litmus", "newFile2.txt")).Returns("D:\\stuff\\litmus\\newFile2.txt");
-            provider.Setup(p => p.Copy("D:\\stuff\\litmus\\newFile.txt", "D:\\stuff\\litmus\\newFile2.txt"));
+            provider.Setup(p => p.CheckExists("/litmus")).Returns(true);
+            provider.Setup(p => p.Copy("/litmus/newFile.txt", "/litmus/newFile2.txt"));
 
             var headers = new NameValueCollection { {"Destination", "http://localhost/webdav/files/litmus/newFile2.txt" }};
             context.Setup(c => c.Request).Returns(request.Object);
@@ -215,10 +203,8 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void COPY_should_not_duplicate_a_resource_if_overwrite_header_is_present_and_false()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff\\litmus", "newFile2.txt")).Returns("D:\\stuff\\litmus\\newFile2.txt");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus\\newFile2.txt")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/newFile2.txt")).Returns(true);
 
             context.Setup(c => c.Request).Returns(request.Object);
             
@@ -234,12 +220,9 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void COPY_should_overwrite_directories_by_default()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/newFile.txt")).Returns("D:\\stuff\\litmus\\newFile.txt");
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff\\litmus", "adir")).Returns("D:\\stuff\\litmus\\adir");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus\\adir")).Returns(true);
-            provider.Setup(p => p.Copy("D:\\stuff\\litmus\\newFile.txt", "D:\\stuff\\litmus\\adir"));
+            provider.Setup(p => p.CheckExists("/litmus")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/adir")).Returns(true);
+            provider.Setup(p => p.Copy("/litmus/newFile.txt", "/litmus/adir"));
 
             var headers = new NameValueCollection { {"Destination", "http://localhost/webdav/files/litmus/adir" }};
             context.Setup(c => c.Request).Returns(request.Object);
@@ -256,12 +239,9 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void COPY_should_fail_if_one_of_ancestors_for_destination_is_missing()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff\\litmus", "another")).Returns("D:\\stuff\\litmus\\another");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus\\another")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff\\litmus\\another", "dir")).Returns("D:\\stuff\\litmus\\another\\dir");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus\\another\\dir")).Returns(false);
+            provider.Setup(p => p.CheckExists("/litmus")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/another")).Returns(true);
+            provider.Setup(p => p.CheckExists("/litmus/another/dir")).Returns(false);
 
             var headers = new NameValueCollection { {"Destination", "http://localhost/webdav/files/litmus/another/dir/newFile.txt" }};
             context.Setup(c => c.Request).Returns(request.Object);
@@ -277,14 +257,9 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void MOVE_should_move_files_to_new_location()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus/newFile.txt")).Returns("D:\\stuff\\litmus\\newFile.txt");
-
             var headers = new NameValueCollection { {"Destination", "http://localhost/webdav/files/litmus/newFile2.txt" }};
-            provider.Setup(p => p.JoinPath("D:\\stuff", "litmus")).Returns("D:\\stuff\\litmus");
-            provider.Setup(p => p.CheckExists("D:\\stuff\\litmus")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff\\litmus", "newFile2.txt")).Returns("D:\\stuff\\litmus\\newFile2.txt");
-
-            provider.Setup(p => p.Move("D:\\stuff\\litmus\\newFile.txt", "D:\\stuff\\litmus\\newFile2.txt"));
+            provider.Setup(p => p.CheckExists("/litmus")).Returns(true);
+            provider.Setup(p => p.Move("/litmus/newFile.txt", "/litmus/newFile2.txt"));
 
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.Headers).Returns(headers);
@@ -301,13 +276,8 @@ namespace WebFiles.Mvc.Tests.Litmus
         [Test]
         public void MOVE_should_copy_with_spaces()
         {
-            provider.Setup(p => p.JoinPath("D:\\stuff", "New Folder")).Returns("D:\\stuff\\New Folder");
-
             var headers = new NameValueCollection { { "Destination", "http://localhost/webdav/files/pics" } };
-            //provider.Setup(p => p.CheckExists("D:\\stuff\\New Folder")).Returns(true);
-            provider.Setup(p => p.JoinPath("D:\\stuff", "pics")).Returns("D:\\stuff\\pics");
-
-            provider.Setup(p => p.Move("D:\\stuff\\New Folder", "D:\\stuff\\pics"));
+            provider.Setup(p => p.Move("/New Folder", "/pics"));
 
             context.Setup(c => c.Request).Returns(request.Object);
             request.Setup(r => r.Headers).Returns(headers);

@@ -21,6 +21,7 @@ namespace WebFiles.Mvc.Tests
         [SetUp]
         public void Setup()
         {
+            fileSystem = new FileSystemProvider { basePath = Path.GetTempPath() };
             paths = new List<string>();
         }
 
@@ -52,25 +53,27 @@ namespace WebFiles.Mvc.Tests
         [Test]
         public void Normalize_urls()
         {
-            Assert.That(fileSystem.JoinPath("d:\\stuff", "litmus/"), Is.EqualTo("d:\\stuff\\litmus"));
-            Assert.That(fileSystem.JoinPath("d:\\stuff", "litmus/another"), Is.EqualTo("d:\\stuff\\litmus\\another"));
+            fileSystem.basePath = "d:\\stuff";
+            Assert.That(fileSystem.GetFullPath("litmus/"), Is.EqualTo("d:\\stuff\\litmus"));
+            Assert.That(fileSystem.GetFullPath("litmus/another"), Is.EqualTo("d:\\stuff\\litmus\\another"));
         }
 
         [Test]
         public void Delete_of_a_file_off_disk()
         {
             var file = AddPath(Path.GetTempFileName());
-            fileSystem.Delete(file);
+            fileSystem.Delete(Path.GetFileName(file));
             Assert.That(File.Exists(file), Is.False);
         }
 
         [Test]
-        public void Delete_a_directory_recurisively_off_disk()
+        public void Delete_a_directory_recursively_off_disk()
         {
-            var newTempPath = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            var dirName = Path.GetRandomFileName();
+            var newTempPath = CreateDirectory(Path.Combine(Path.GetTempPath(), dirName));
             var newTempPath2 = CreateDirectory(Path.Combine(newTempPath, Path.GetRandomFileName()));
 
-            fileSystem.Delete(newTempPath);
+            fileSystem.Delete(dirName);
             Assert.That(Directory.Exists(newTempPath2), Is.False);
             Assert.That(Directory.Exists(newTempPath), Is.False);
        }
@@ -78,7 +81,7 @@ namespace WebFiles.Mvc.Tests
         [Test]
         public void Delete_a_non_existent_file_should_do_nothing()
         {
-            fileSystem.Delete(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+            fileSystem.Delete(Path.GetRandomFileName());
         }
 
         [Test]
@@ -89,10 +92,10 @@ namespace WebFiles.Mvc.Tests
             ms.Write(bytes, 0, bytes.Length);
             ms.Position = 0;
 
-            var fileName = AddPath(Path.GetTempFileName());
-            fileSystem.Save(fileName, ms);
+            var filePath = AddPath(Path.GetTempFileName());
+            fileSystem.Save(Path.GetFileName(filePath), ms);
 
-            var text = File.ReadAllText(fileName);
+            var text = File.ReadAllText(filePath);
             Assert.That(text, Is.EqualTo("save this resource"));
         }
 
@@ -102,13 +105,20 @@ namespace WebFiles.Mvc.Tests
             var fullPath = AddPath(Path.Combine(Path.GetTempPath(), "#" + Path.GetRandomFileName()));
             File.WriteAllBytes(fullPath, Encoding.UTF8.GetBytes("read this resource"));
 
-            using (var reader = new StreamReader(fileSystem.Read(fullPath)))
+            var fileName = Path.GetFileName(fullPath);
+            using (var reader = new StreamReader(fileSystem.Read(fileName)))
                 Assert.That(reader.ReadToEnd(), Is.EqualTo("read this resource"));
         }
 
         [Test, Ignore]
         public void Read_file_stream_from_url_encoded_path()
         {
+            //windows seems to take the '%23' and url decode it to '#'
+            //it then makes requests for '#' instead of for '%23' causing operations to fail
+            //not quite sure how prevalent this bug will be so this test is here as 
+            //a reminder to do an experimental feature that can be turned on that will support
+            //this scenario
+
             var randomName = Path.GetRandomFileName();
             var tempDirName = Path.GetRandomFileName();
             var actualTempDir = CreateDirectory(Path.Combine(Path.GetTempPath(), "%23" + tempDirName));
@@ -128,9 +138,10 @@ namespace WebFiles.Mvc.Tests
 
             var tempFileDestination = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
             Assert.That(File.Exists(tempFileDestination), Is.False);
-            fileSystem.Copy(tempFileSource, tempFileDestination);
-            Assert.That(File.Exists(tempFileDestination), Is.True);
+            
+            fileSystem.Copy(Path.GetFileName(tempFileSource), Path.GetFileName(tempFileDestination));
 
+            Assert.That(File.Exists(tempFileDestination), Is.True);
             Assert.That(File.ReadAllText(tempFileDestination), Is.EqualTo("copy resource to new location"));
        }
 
@@ -143,7 +154,7 @@ namespace WebFiles.Mvc.Tests
             var tempFileDestination = AddPath(Path.GetTempFileName());
             Assert.That(File.Exists(tempFileDestination), Is.True);
 
-            fileSystem.Copy(tempFileSource, tempFileDestination);
+            fileSystem.Copy(Path.GetFileName(tempFileSource), Path.GetFileName(tempFileDestination));
             Assert.That(File.Exists(tempFileDestination), Is.True);
 
             Assert.That(File.ReadAllText(tempFileDestination), Is.EqualTo("copy resource to new location"));
@@ -170,7 +181,7 @@ namespace WebFiles.Mvc.Tests
             File.WriteAllText(startDirTempFile, "start dir temp file");
 
             string newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
-            fileSystem.Copy(startDir, newDir);
+            fileSystem.Copy(startDir.Replace(Path.GetTempPath(), ""), newDir.Replace(Path.GetTempPath(), ""));
 
             var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
 
@@ -191,8 +202,8 @@ namespace WebFiles.Mvc.Tests
             File.WriteAllText(subDirTempFile, "sub dir temp file");
 
             var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
-            
-            fileSystem.Copy(startDir, newDir);
+
+            fileSystem.Copy(startDir.Replace(Path.GetTempPath(), ""), newDir.Replace(Path.GetTempPath(), ""));
 
             var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
 
@@ -211,7 +222,8 @@ namespace WebFiles.Mvc.Tests
 
             var newDir = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
             var newDirTempFile = Path.Combine(newDir, Path.GetRandomFileName());
-            fileSystem.Move(startDirTempFile, newDirTempFile); 
+            
+            fileSystem.Move(startDirTempFile.Replace(Path.GetTempPath(), ""), newDirTempFile.Replace(Path.GetTempPath(), "")); 
 
             var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
 
@@ -233,7 +245,7 @@ namespace WebFiles.Mvc.Tests
             var newDir = CreateDirectory(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
             var newSubDir = AddPath(Path.Combine(newDir, Path.GetRandomFileName()));
 
-            fileSystem.Move(startDir, newSubDir);
+            fileSystem.Move(startDir.Replace(Path.GetTempPath(), ""), newSubDir.Replace(Path.GetTempPath(), ""));
 
             var files = Directory.GetFiles(newDir, "*.*", SearchOption.AllDirectories);
 
@@ -251,7 +263,7 @@ namespace WebFiles.Mvc.Tests
             var tempDir = CreateDirectory(Path.Combine(tempPath, newDir));
 
             var request = new PropfindRequest { HasResourceType = true, PathInfo = newDir };
-            var result = fileSystem.Process(tempPath, request);
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
@@ -266,12 +278,12 @@ namespace WebFiles.Mvc.Tests
             var tempPath = AddPath(Path.GetTempFileName());
             var fileName = Path.GetFileName(tempPath);
 
-            var request = new PropfindRequest { HasResourceType = true, PathInfo = "/" + tempPath};
-            var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { HasResourceType = true, PathInfo = fileName};
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
-            Assert.That(response.Href, Is.EqualTo("/" + tempPath));
+            Assert.That(response.Href, Is.EqualTo("/" + fileName));
             Assert.That(response.Found.IsCollection, Is.False);
             Assert.That(response.Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
         }
@@ -283,8 +295,8 @@ namespace WebFiles.Mvc.Tests
             var fileName = Path.GetFileName(tempPath);
             File.WriteAllBytes(tempPath, new byte[] { 23, 45, 45 });
 
-            var request = new PropfindRequest { HasGetContentLength = true, PathInfo = "/" + fileName };
-            var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { HasGetContentLength = true, PathInfo = fileName };
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
@@ -300,8 +312,8 @@ namespace WebFiles.Mvc.Tests
             var newDir = Path.GetRandomFileName();
             var tempPath = CreateDirectory(Path.Combine(tempDir, newDir));
 
-            var request = new PropfindRequest { HasGetContentLength = true, PathInfo = "/" + newDir};
-            var result = fileSystem.Process(tempDir, request);
+            var request = new PropfindRequest { HasGetContentLength = true, PathInfo = newDir};
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
@@ -321,8 +333,8 @@ namespace WebFiles.Mvc.Tests
             var fileName = Path.GetFileName(tempPath);
             var lastModified = File.GetLastWriteTimeUtc(tempPath);
 
-            var request = new PropfindRequest { HasGetLastModified = true, PathInfo = "/" + fileName };
-            var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { HasGetLastModified = true, PathInfo = fileName };
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
@@ -339,8 +351,8 @@ namespace WebFiles.Mvc.Tests
             var tempPath = CreateDirectory(Path.Combine(tempDir, fileName));
             var lastModified = Directory.GetLastWriteTimeUtc(tempPath);
 
-            var request = new PropfindRequest { HasGetLastModified = true, PathInfo = "/" + fileName };
-            var result = fileSystem.Process(tempDir, request);
+            var request = new PropfindRequest { HasGetLastModified = true, PathInfo = fileName };
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
@@ -355,8 +367,8 @@ namespace WebFiles.Mvc.Tests
             var tempPath = AddPath(Path.GetTempFileName());
             var fileName = Path.GetFileName(tempPath);
 
-            var request = new PropfindRequest { PathInfo = "/" + fileName, DavProperties = new List<string> { "displayname" } };
-            var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { PathInfo = fileName, DavProperties = new List<string> { "displayname" } };
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
@@ -378,8 +390,8 @@ namespace WebFiles.Mvc.Tests
 
             XNamespace nameSpace = "http://example.com/neon/litmus/";
             var element = new XElement(nameSpace + "foo", null);
-            var request = new PropfindRequest { PathInfo = "/" + fileName, NonDavProperties = new List<XElement> { element } };
-            var result = fileSystem.Process(Path.GetTempPath(), request);
+            var request = new PropfindRequest { PathInfo = fileName, NonDavProperties = new List<XElement> { element } };
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             var response = result.Responses[0];
@@ -398,6 +410,7 @@ namespace WebFiles.Mvc.Tests
         {
             var startDirName = Path.GetRandomFileName();
             var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), startDirName));
+            fileSystem.basePath = startDir;
 
             var startDirTempFileName = Path.GetRandomFileName();
             var startDirTempFile = AddPath(Path.Combine(startDir, startDirTempFileName));
@@ -413,7 +426,7 @@ namespace WebFiles.Mvc.Tests
             var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
 
             var request = new PropfindRequest("/", "0");
-            var result = fileSystem.Process(startDir, request);
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(1));
             Assert.That(result.Responses[0].Href, Is.EqualTo("/"));
@@ -426,6 +439,7 @@ namespace WebFiles.Mvc.Tests
         {
             var startDirName = Path.GetRandomFileName();
             var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), startDirName));
+            fileSystem.basePath = startDir;
 
             var startDirTempFileName = Path.GetRandomFileName();
             var startDirTempFile = AddPath(Path.Combine(startDir, startDirTempFileName));
@@ -441,7 +455,7 @@ namespace WebFiles.Mvc.Tests
             var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
 
             var request = new PropfindRequest("/", "1");
-            var result = fileSystem.Process(startDir, request);
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(3));
             Assert.That(result.Responses[0].Href, Is.EqualTo("/"));
@@ -463,6 +477,7 @@ namespace WebFiles.Mvc.Tests
         {
             var startDirName = Path.GetRandomFileName();
             var startDir = CreateDirectory(Path.Combine(Path.GetTempPath(), startDirName));
+            fileSystem.basePath = startDir;
 
             var startDirTempFileName = Path.GetRandomFileName();
             var startDirTempFile = AddPath(Path.Combine(startDir, startDirTempFileName)); 
@@ -478,7 +493,7 @@ namespace WebFiles.Mvc.Tests
             var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
 
             var request = new PropfindRequest("/", "2");
-            var result = fileSystem.Process(startDir, request);
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(4));
             Assert.That(result.Responses[0].Href, Is.EqualTo("/"));
@@ -520,7 +535,7 @@ namespace WebFiles.Mvc.Tests
             var newDir = AddPath(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
 
             var request = new PropfindRequest(startDirName, "2");
-            var result = fileSystem.Process(Path.GetTempPath(), request);
+            var result = fileSystem.Process(request);
 
             Assert.That(result.Responses.Count, Is.EqualTo(4));
             Assert.That(result.Responses[0].Href, Is.EqualTo("/" + startDirName));
@@ -540,6 +555,41 @@ namespace WebFiles.Mvc.Tests
             Assert.That(result.Responses[3].Found.Status, Is.EqualTo("HTTP/1.1 200 OK"));
             Assert.That(result.Responses[3].Found.IsCollection, Is.False);
             Assert.That(result.Responses[3].Found.ContentLength, Is.EqualTo(17));
+        }
+
+        [Test]
+        public void should_return_false_when_file_exists()
+        {
+            var result = fileSystem.CheckExists(Path.GetRandomFileName());
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void should_return_true_when_file_exists()
+        {
+            var filePath = AddPath(Path.GetTempFileName());
+            var fileName = Path.GetFileName(filePath);
+            var result = fileSystem.CheckExists("/" + fileName);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void should_return_true_when_directory_exists()
+        {
+            var fileName = Path.GetRandomFileName();
+            var filePath = CreateDirectory(Path.Combine(Path.GetTempPath(), fileName));
+            var result = fileSystem.CheckExists("/" + fileName);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void should_create_a_directory()
+        {
+            var fileName = Path.GetRandomFileName();
+            fileSystem.CreateCollection(fileName);
+
+            var fullPath = Path.Combine(Path.GetTempPath(), fileName);
+            Assert.That(Directory.Exists(fullPath), Is.True);
         }
     }
 }

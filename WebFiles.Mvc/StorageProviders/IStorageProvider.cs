@@ -6,17 +6,14 @@ namespace WebFiles.Mvc.Providers
 {
     public interface IStorageProvider
     {
-        bool CheckExists(string fullPath);
-        string JoinPath(string basePath, string additionalPath);
-        bool IsACollection(string fullPath);
+        bool CheckExists(string relativePath);
+        void CreateCollection(string relativePath);
+        void Save(string relativePath, Stream input);
+        Stream Read(string relativePath);
+        void Copy(string sourceRelativePath, string destinationRelativePath);
+        void Move(string sourceRelativePath, string destinationRelativePath);
+        void Delete(string relativePath);
 
-        void CreateCollection(string fullPath);
-        void Delete(string fullPath);
-        Stream Read(string fullPath);
-        void Save(string fullPath, Stream input);
-        void Copy(string source, string destination);
-        void Move(string source, string destination);
-
-        MultiStatusResult Process(string rootPath, PropfindRequest request);
+        MultiStatusResult Process(PropfindRequest request);
     }
 }
